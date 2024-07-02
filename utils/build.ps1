@@ -1610,8 +1610,7 @@ function Build-Runtime([Platform]$Platform, $Arch) {
         SWIFT_ENABLE_EXPERIMENTAL_DISTRIBUTED = "YES";
         SWIFT_ENABLE_EXPERIMENTAL_OBSERVATION = "YES";
         SWIFT_ENABLE_EXPERIMENTAL_STRING_PROCESSING = "YES";
-        # FIXME: re-enable after https://github.com/apple/swift/issues/74186 is fixed.
-        SWIFT_ENABLE_SYNCHRONIZATION = if (($Platform -eq "Android") -and ($Arch -eq $AndroidARMv7)) { "NO" } else { "YES" };
+        SWIFT_ENABLE_SYNCHRONIZATION = "YES";
         SWIFT_ENABLE_VOLATILE = "YES";
         SWIFT_NATIVE_SWIFT_TOOLS_PATH = (Join-Path -Path $CompilersBinaryCache -ChildPath "bin");
         SWIFT_PATH_TO_LIBDISPATCH_SOURCE = "$SourceCache\swift-corelibs-libdispatch";
@@ -1779,8 +1778,12 @@ function Install-Platform([Platform]$Platform, $Arch) {
   # Copy SDK header files
   Copy-Directory "$($Arch.SDKInstallRoot)\usr\include\swift\SwiftRemoteMirror" $SDKInstallRoot\usr\include\swift
   Copy-Directory "$($Arch.SDKInstallRoot)\usr\lib\swift\shims" $SDKInstallRoot\usr\lib\swift
-  foreach ($Module in ("Block", "dispatch", "os")) {
-    Copy-Directory "$($Arch.SDKInstallRoot)\usr\lib\swift\$Module" $SDKInstallRoot\usr\include
+  foreach ($Module in ("Block", "dispatch", "os", "_foundation_unicode", "_FoundationCShims")) {
+    $ModuleDirectory = "$($Arch.SDKInstallRoot)\usr\lib\swift\$Module"
+    $DestinationDirectory = "$SDKInstallRoot\usr\include"
+    if (Test-Path $ModuleDirectory) {
+      Copy-Directory $ModuleDirectory $DestinationDirectory
+    }
   }
 
   # Copy SDK share folder
