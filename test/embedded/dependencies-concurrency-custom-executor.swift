@@ -16,7 +16,6 @@
 // DEP: _abort
 // DEP: _clock_gettime
 // DEP: _exit
-// DEP: _fprintf
 // DEP: _free
 // DEP: _malloc
 // DEP: _memmove

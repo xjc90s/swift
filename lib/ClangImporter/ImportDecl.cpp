@@ -57,6 +57,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjCCommon.h"
+#include "clang/AST/Type.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/Preprocessor.h"
@@ -2753,7 +2754,8 @@ namespace {
       if (decl->getDeclContext()->isNamespace() &&
           decl->getDeclContext()->getParent()->isStdNamespace() &&
           decl->getIdentifier() &&
-          (decl->getName() == "tzdb" || decl->getName() == "time_zone_link"))
+          (decl->getName() == "tzdb" || decl->getName() == "time_zone_link" ||
+           decl->getName() == "time_zone"))
         return nullptr;
 
       auto &clangSema = Impl.getClangSema();
@@ -3852,10 +3854,35 @@ namespace {
       return result;
     }
 
+    static bool isNonEscapableAnnotatedType(const clang::Type *t) {
+      if (const auto *rd = t->getAsRecordDecl()) {
+        return hasNonEscapableAttr(rd);
+      }
+      return false;
+    }
+
+    static bool isEscapableAnnotatedType(const clang::Type *t) {
+      if (const auto *rd = t->getAsRecordDecl()) {
+        return hasEscapableAttr(rd);
+      }
+      return false;
+    }
+
     void addLifetimeDependencies(const clang::FunctionDecl *decl,
                                  AbstractFunctionDecl *result) {
       if (decl->getTemplatedKind() == clang::FunctionDecl::TK_FunctionTemplate)
         return;
+
+      auto retType = decl->getReturnType();
+      auto warnForEscapableReturnType = [&] {
+        if (isEscapableAnnotatedType(retType.getTypePtr())) {
+          Impl.addImportDiagnostic(
+              decl,
+              Diagnostic(diag::return_escapable_with_lifetimebound,
+                         Impl.SwiftContext.AllocateCopy(retType.getAsString())),
+              decl->getLocation());
+        }
+      };
 
       auto swiftParams = result->getParameters();
       bool hasSelf = result->hasImplicitSelfDecl() && !isa<ConstructorDecl>(result);
@@ -3866,6 +3893,7 @@ namespace {
                                                          hasSelf);
       for (auto [idx, param] : llvm::enumerate(decl->parameters())) {
         if (param->hasAttr<clang::LifetimeBoundAttr>()) {
+          warnForEscapableReturnType();
           if (swiftParams->get(idx)->getInterfaceType()->isEscapable())
             scopedLifetimeParamIndicesForReturn[idx] = true;
           else
@@ -3873,6 +3901,7 @@ namespace {
         }
       }
       if (implicitObjectParamIsLifetimeBound(decl)) {
+        warnForEscapableReturnType();
         auto idx = result->getSelfIndex();
         if (result->getImplicitSelfDecl()->getInterfaceType()->isEscapable())
           scopedLifetimeParamIndicesForReturn[idx] = true;
@@ -3900,11 +3929,20 @@ namespace {
           lifetimeDependencies.push_back(
               LifetimeDependenceInfo(nullptr, nullptr, 0, /*isImmortal*/ true));
       }
-      if (!lifetimeDependencies.empty()) {
+      if (lifetimeDependencies.empty()) {
+        if (isNonEscapableAnnotatedType(retType.getTypePtr())) {
+          Impl.addImportDiagnostic(
+              decl,
+              Diagnostic(diag::return_nonescapable_without_lifetimebound,
+                         Impl.SwiftContext.AllocateCopy(retType.getAsString())),
+              decl->getLocation());
+        }
+      } else {
         Impl.SwiftContext.evaluator.cacheOutput(
             LifetimeDependenceInfoRequest{result},
             Impl.SwiftContext.AllocateCopy(lifetimeDependencies));
       }
+      Impl.diagnoseTargetDirectly(decl);
     }
 
     void finishFuncDecl(const clang::FunctionDecl *decl,

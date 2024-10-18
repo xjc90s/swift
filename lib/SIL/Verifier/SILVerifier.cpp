@@ -12,6 +12,8 @@
 
 #define DEBUG_TYPE "sil-verifier"
 
+#include "VerifierPrivate.h"
+
 #include "swift/AST/ASTContext.h"
 #include "swift/AST/ASTSynthesis.h"
 #include "swift/AST/AnyFunctionRef.h"
@@ -61,6 +63,7 @@
 #include <memory>
 
 using namespace swift;
+using namespace swift::silverifier;
 
 using Lowering::AbstractionPattern;
 
@@ -931,6 +934,8 @@ class SILVerifier : public SILVerifierBase<SILVerifier> {
   /// TODO: LifetimeCompletion: shared_ptr -> unique_ptr
   std::shared_ptr<DeadEndBlocks> deadEndBlocks;
 
+  LoadBorrowImmutabilityAnalysis loadBorrowImmutabilityAnalysis;
+
   /// A cache of the isOperandInValueUse check. When we process an operand, we
   /// fix this for each of its uses.
   llvm::DenseSet<std::pair<SILValue, const Operand *>> isOperandInValueUsesCache;
@@ -1180,7 +1185,8 @@ public:
         SingleFunction(SingleFunction),
         checkLinearLifetime(checkLinearLifetime),
         Dominance(nullptr),
-        InstNumbers(numInstsInFunction(F)) {
+        InstNumbers(numInstsInFunction(F)),
+        loadBorrowImmutabilityAnalysis(DEBlocks.get(), &F) {
     if (F.isExternalDeclaration())
       return;
 
@@ -2660,6 +2666,13 @@ public:
     requireSameType(LBI->getOperand()->getType().getObjectType(),
                     LBI->getType(),
                     "Load operand type and result type mismatch");
+    if (LBI->isUnchecked()) {
+      require(LBI->getModule().getStage() == SILStage::Raw,
+              "load_borrow can only be [unchecked] in raw SIL");
+    } else {
+      require(loadBorrowImmutabilityAnalysis.isImmutable(LBI),
+              "Found load borrow that is invalidated by a local write?!");
+    }
   }
 
   void checkBeginBorrowInst(BeginBorrowInst *bbi) {
@@ -5225,6 +5238,27 @@ public:
     require(resTI == ti->getThunkKind().getDerivedFunctionType(
                          ti->getFunction(), objTI, ti->getSubstitutionMap()),
             "resTI is not the thunk kind assigned derived function type");
+
+    auto originalCalleeFuncType =
+        ti->getOperand()->getType().castTo<SILFunctionType>();
+
+    switch (ti->getThunkKind()) {
+    case ThunkInst::Kind::Invalid:
+      break;
+    case ThunkInst::Kind::Identity:
+      break;
+    case ThunkInst::Kind::HopToMainActorIfNeeded:
+      require(originalCalleeFuncType->getParameters().empty(),
+              "Hop To Main Actor If Needed cannot have any parameters");
+      require(originalCalleeFuncType->getResults().empty(),
+              "Hop To Main Actor If Needed cannot have any results");
+      // We require that hop_to_main_actor inputs do not an error since we
+      // have to have no results.
+      require(!originalCalleeFuncType->hasErrorResult(),
+              "HopToMainActorIfNeeded thunks cannot have input without an "
+              "error result");
+      break;
+    }
   }
 
   void checkConvertEscapeToNoEscapeInst(ConvertEscapeToNoEscapeInst *ICI) {
@@ -7328,6 +7362,10 @@ static bool verificationEnabled(const SILModule &M) {
 
   // Otherwise, if verify all is set, we always verify.
   if (M.getOptions().VerifyAll)
+    return true;
+
+  // If we have asserts enabled, always verify...
+  if (CONDITIONAL_ASSERT_enabled())
     return true;
 
 #ifndef NDEBUG
