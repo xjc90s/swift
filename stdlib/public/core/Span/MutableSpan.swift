@@ -290,7 +290,7 @@ extension MutableSpan where Element: BitwiseCopyable {
   public var mutableBytes: MutableRawSpan {
     @lifetime(&self)
     mutating get {
-      MutableRawSpan(_elements: &self)
+      unsafe MutableRawSpan(_elements: &self)
     }
   }
 }
