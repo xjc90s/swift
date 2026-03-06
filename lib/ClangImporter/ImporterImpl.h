@@ -717,20 +717,20 @@ public:
   std::tuple<VarDecl *, FuncDecl *, FuncDecl *>
   lookupAndImportPointeeAndOperatorStar(NominalTypeDecl *Record);
 
-  // Attempt to lookup and import the synthesized .pointee computed property.
-  //
-  /// Requires that \a Record is a (Swift) StructDecl and is imported from
-  /// a CXXRecordDecl.
-  //
+  /// Attempt to lookup and import the synthesized .pointee computed property.
+  ///
+  /// Requires that \a Record is a (Swift) StructDecl or ClassDecl that is
+  /// imported from a CXXRecordDecl.
+  ///
   /// This function is idempotent, and if successful, ensures the synthesized
   /// .pointee that it returns are members of \a Record.
   VarDecl *lookupAndImportPointee(NominalTypeDecl *Record);
 
   /// Attempt to lookup and import the synthesized .successor() method.
-  //
+  ///
   /// Requires that \a Record is a (Swift) StructDecl and is imported from
   /// a CXXRecordDecl.
-  //
+  ///
   /// This function is idempotent, and if successful, ensures the synthesized
   /// .successor() that it returns is a member of \a Record.
   FuncDecl *lookupAndImportSuccessor(NominalTypeDecl *Record);

@@ -10798,8 +10798,8 @@ void ClangRecordMemberLoader::load(const clang::RecordDecl *clangRecord,
 
   if ((isa<clang::CXXRecordDecl>(swiftDecl->getClangDecl())) && !storage &&
       !inheritance) {
-    Impl.lookupAndImportPointee(swiftDecl);
-    Impl.lookupAndImportSuccessor(swiftDecl);
+    (void)Impl.lookupAndImportPointee(swiftDecl);
+    (void)Impl.lookupAndImportSuccessor(swiftDecl);
   }
 }
 } // namespace
