@@ -184,59 +184,59 @@ struct UniqueBorrow: ~Copyable {
   }
 }
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, computedVar)
 // CHECK-NEXT: hello from computedVar
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, computedVar)
 _ = computedVar
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, computedVarWithExplicitGetter)
 // CHECK-NEXT: hello from computedVarWithExplicitGetter
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, computedVarWithExplicitGetter)
 _ = computedVarWithExplicitGetter
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, storedVarWithExplicitGetAndAttachedMacro)
 // CHECK-NEXT: Hello from storedVarWithGetAndAttachedMacro
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, storedVarWithExplicitGetAndAttachedMacro)
 _ = storedVarWithExplicitGetAndAttachedMacro
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, computedVarWithGetterAndSetter)
 // CHECK-NEXT: hello from computedVarWithGetterAndSetter
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, computedVarWithGetterAndSetter)
 _ = computedVarWithGetterAndSetter
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, computedVarWithGetterAndSetter)
 // CHECK-NEXT: Hello from setter: false
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, computedVarWithGetterAndSetter)
 computedVarWithGetterAndSetter = false
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, storedVarWithWillSetDidSet)
 // CHECK-NEXT: hello from storedVarWithWillSetDidSet willSet: true
-// CHECK-NEXT: end body (from macro)
-// CHECK-NEXT: start body (from macro)
+// CHECK-NEXT: end body (from macro, storedVarWithWillSetDidSet)
+// CHECK-NEXT: start body (from macro, storedVarWithWillSetDidSet)
 // CHECK-NEXT: hello from storedVarWithWillSetDidSet didSet: true
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, storedVarWithWillSetDidSet)
 storedVarWithWillSetDidSet = true
 
 var uniqueBorrow = UniqueBorrow(x: 10)
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, UniqueBorrow.propertyWithYieldingBorrowYieldingMutate)
 // CHECK-NEXT: Hello from yielding borrow
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, UniqueBorrow.propertyWithYieldingBorrowYieldingMutate)
 _ = uniqueBorrow.propertyWithYieldingBorrowYieldingMutate
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, UniqueBorrow.propertyWithYieldingBorrowYieldingMutate)
 // CHECK-NEXT: Hello from yielding mutate
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, UniqueBorrow.propertyWithYieldingBorrowYieldingMutate)
 uniqueBorrow.propertyWithYieldingBorrowYieldingMutate = 10
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, UniqueBorrow.propertyWithBorrowMutate)
 // CHECK-NEXT: Hello from borrow
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, UniqueBorrow.propertyWithBorrowMutate)
 _ = uniqueBorrow.propertyWithBorrowMutate
 
-// CHECK: start body (from macro)
+// CHECK: start body (from macro, UniqueBorrow.propertyWithBorrowMutate)
 // CHECK-NEXT: Hello from mutate
-// CHECK-NEXT: end body (from macro)
+// CHECK-NEXT: end body (from macro, UniqueBorrow.propertyWithBorrowMutate)
 uniqueBorrow.propertyWithBorrowMutate = 10
 
 #if compiler(>=6.0) && TEST_DIAGNOSTICS

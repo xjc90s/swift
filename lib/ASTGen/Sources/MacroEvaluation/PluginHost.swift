@@ -427,6 +427,7 @@ extension PluginMessage.Syntax {
   init?(syntax: Syntax) {
     let kind: PluginMessage.Syntax.Kind
     switch true {
+    case syntax.is(AccessorDeclSyntax.self): kind = .accessor
     case syntax.is(DeclSyntax.self): kind = .declaration
     case syntax.is(ExprSyntax.self): kind = .expression
     case syntax.is(StmtSyntax.self): kind = .statement
