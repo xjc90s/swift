@@ -585,14 +585,20 @@ bool swift::isInvalidAttachedMacro(MacroRole role,
 
   case MacroRole::Preamble:
   case MacroRole::Body:
-    // Only function declarations or computed variables (with only a getter, but
-    // no setter)
+    // Only function declarations or computed variables with an implicit getter
+    // (no explicit getter, no setter).
     if (isa<AbstractFunctionDecl>(attachedTo))
       return false;
 
-    if (auto *var = dyn_cast<VarDecl>(attachedTo))
-      if (!var->hasStorage() && !var->isSettable(/*useDC=*/nullptr))
-        return false;
+    if (auto *var = dyn_cast<VarDecl>(attachedTo)) {
+      if (!var->hasStorage() && !var->isSettable(/*useDC=*/nullptr)) {
+        // Disallow body macros on vars with an explicit getter — the macro
+        // should be attached directly to the getter accessor instead.
+        auto *getter = var->getParsedAccessor(AccessorKind::Get);
+        if (!getter || getter->isImplicitGetter())
+          return false;
+      }
+    }
 
     break;
   }

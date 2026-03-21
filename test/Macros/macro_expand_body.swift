@@ -123,14 +123,6 @@ var computedVarWithExplicitGetter: Bool {
   }
 }
 
-@Print
-var storedVarWithExplicitGetAndAttachedMacro: Bool {
-  get {
-    print("Hello from storedVarWithGetAndAttachedMacro")
-    return true
-  }
-}
-
 var computedVarWithGetterAndSetter: Bool {
   @Print
   get {
@@ -194,11 +186,6 @@ _ = computedVar
 // CHECK-NEXT: end body (from macro, computedVarWithExplicitGetter)
 _ = computedVarWithExplicitGetter
 
-// CHECK: start body (from macro, storedVarWithExplicitGetAndAttachedMacro)
-// CHECK-NEXT: Hello from storedVarWithGetAndAttachedMacro
-// CHECK-NEXT: end body (from macro, storedVarWithExplicitGetAndAttachedMacro)
-_ = storedVarWithExplicitGetAndAttachedMacro
-
 // CHECK: start body (from macro, computedVarWithGetterAndSetter)
 // CHECK-NEXT: hello from computedVarWithGetterAndSetter
 // CHECK-NEXT: end body (from macro, computedVarWithGetterAndSetter)
@@ -256,14 +243,22 @@ var storedVarWithWillSetDidSetAttachedMacro = false {
   }
 }
 
-@Print // expected-error {{'body' macro cannot be attached to var ('storedVarWithExplicitGetSetAndAttachedMacro'}}
-var storedVarWithExplicitGetSetAndAttachedMacro: Bool {
+@Print // expected-error {{'body' macro cannot be attached to var ('varWithExplicitGetAndAttachedMacro')}}
+var varWithExplicitGetAndAttachedMacro: Bool {
   get {
-    print("Hello from storedVarWithGetAndAttachedMacro")
+    print("Hello from varWithExplicitGetAndAttachedMacro")
+    return true
+  }
+}
+
+@Print // expected-error {{'body' macro cannot be attached to var ('varWithGetSetAndAttachedMacro'}}
+var varWithGetSetAndAttachedMacro: Bool {
+  get {
+    print("Hello from varWithGetSetAndAttachedMacro")
     return true
   }
   set {
-    print("Hello from storedVarWithExplicitGetAndAttachedMacro setter: \(newValue)")
+    print("Hello from varWithGetSetAndAttachedMacro setter: \(newValue)")
   }
 }
 
