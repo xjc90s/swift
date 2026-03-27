@@ -627,6 +627,7 @@ ConstraintSystem::SolverState::SolverState(
 ConstraintSystem::SolverState::~SolverState() {
   assert((CS.solverState == this) &&
          "Expected constraint system to have this solver state!");
+  CS.NumTrailSteps += NumTrailSteps;
   CS.solverState = nullptr;
 
   // If constraint system ended up being in an invalid state

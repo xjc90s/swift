@@ -140,16 +140,37 @@ ExpressionTimer::~ExpressionTimer() {
   if (!PrintWarning)
     return;
 
+  // Time-based warning (non-deterministic).
   const auto WarnLimit = getWarnLimit();
-
-  if (WarnLimit == 0 || elapsedMS < WarnLimit)
-    return;
-
-  if (range.Start.isValid()) {
+  if (WarnLimit > 0 && elapsedMS >= WarnLimit && range.Start.isValid()) {
     ctx.Diags
         .diagnose(range.Start, diag::debug_long_expression, elapsedMS,
                   WarnLimit)
         .highlight(range);
+  }
+
+  // Scope-based warning (deterministic).
+  const auto scopeLimit = ctx.TypeCheckerOpts.WarnLongExpressionTypeCheckingScopes;
+  if (scopeLimit > 0) {
+    unsigned numScopes = CS.getNumSolverScopes();
+    if (numScopes > scopeLimit && range.Start.isValid()) {
+      ctx.Diags
+          .diagnose(range.Start, diag::debug_long_expression_scopes,
+                    numScopes, scopeLimit)
+          .highlight(range);
+    }
+  }
+
+  // Trail-based warning (deterministic).
+  const auto trailLimit = ctx.TypeCheckerOpts.WarnLongExpressionTypeCheckingTrail;
+  if (trailLimit > 0) {
+    unsigned numSteps = CS.getNumTrailSteps();
+    if (numSteps > trailLimit && range.Start.isValid()) {
+      ctx.Diags
+          .diagnose(range.Start, diag::debug_long_expression_trail,
+                    numSteps, trailLimit)
+          .highlight(range);
+    }
   }
 }
 
@@ -191,6 +212,8 @@ void ConstraintSystem::startExpressionTimer() {
   // Otherwise, don't start the timer, it's needless overhead.
   if (timeout == 0) {
     if (opts.WarnLongExpressionTypeChecking == 0 &&
+        opts.WarnLongExpressionTypeCheckingScopes == 0 &&
+        opts.WarnLongExpressionTypeCheckingTrail == 0 &&
         !opts.DebugTimeExpressions)
       return;
 

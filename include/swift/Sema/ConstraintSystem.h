@@ -4073,6 +4073,12 @@ public:
     return CurrentRange;
   }
 
+  /// Return the number of solver scopes created so far.
+  unsigned getNumSolverScopes() const { return NumSolverScopes; }
+
+  /// Return the number of solver trail steps taken so far.
+  unsigned getNumTrailSteps() const { return NumTrailSteps; }
+
   /// Determine if we've already explored too many paths in an
   /// attempt to solve this expression.
   std::pair<bool, SourceRange> isAlreadyTooComplex = {false, SourceRange()};
