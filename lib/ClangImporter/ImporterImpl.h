@@ -735,12 +735,30 @@ public:
   /// .successor() that it returns is a member of \a Record.
   FuncDecl *lookupAndImportSuccessor(NominalTypeDecl *Record);
 
+  /// Attempt to lookup and import the synthesized .subscript members.
+  ///
+  /// Requires that \a Record is imported from a CXXRecordDecl.
+  ///
+  /// This function is idempotent, and if successful, ensures the synthesized
+  /// .subscript that it returns is a member of \a Record.
+  ///
+  /// If \a noSynthesize is set to true, then no .subscript members will be
+  /// synthesized, and an empty result will be cached. This parameter exists
+  /// specifically to support the prevention of .subscript synthesis for types
+  /// that conform to CxxDictionary, so that the Cxx overlay can provide its
+  /// own implementation of .subscript that returns a nil value instead of
+  /// default-initializing a new entry when given a non-existent key.
+  llvm::ArrayRef<SubscriptDecl *>
+  lookupAndImportSubscripts(NominalTypeDecl *Struct, bool noSynthesize = false);
+
 private:
   /// Stores <.pointee, func __operatorStar(), mutating func __operatorStar()>
   llvm::DenseMap<NominalTypeDecl *,
                  std::tuple<VarDecl *, FuncDecl *, FuncDecl *>>
       importedPointeeCache;
   llvm::DenseMap<NominalTypeDecl *, FuncDecl *> importedSuccessorCache;
+  llvm::DenseMap<NominalTypeDecl *, llvm::SmallVector<SubscriptDecl *, 1>>
+      importedSubscriptsCache;
 
 public:
   llvm::DenseMap<const clang::ParmVarDecl*, FuncDecl*> defaultArgGenerators;

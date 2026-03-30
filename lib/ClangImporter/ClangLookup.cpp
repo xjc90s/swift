@@ -454,6 +454,42 @@ struct CXXOverload {
   }
 };
 
+/// The argument types of a C++ method overload.
+///
+/// Note that this does not constitute the full signature of a C++ overload:
+/// overloads with the same argument types but different constness (of 'this')
+/// are still considered distinct overloads.
+///
+/// When looking up and importing certain members like operator[] -> subscript
+/// or operator() -> callAsFunction that can have multiple overloads in Swift,
+/// it is helpful to group overloads of the same argument types, so that if
+/// there are both const and non-const overloads, we can decide which to use as
+/// the getter and which to use as the setter (which is not decided by the
+/// constnes of 'this', but by the constness of the return type). We define
+/// CXXOverloadArgTypes to the key of a map, so that given a bunch of overloads,
+/// we can sort them into these groups of the same argument types.
+struct CXXOverloadArgTypes : llvm::SmallVector<clang::QualType, 4> {
+  using ::CXXOverloadArgTypes::SmallVector::SmallVector;
+  CXXOverloadArgTypes(CXXOverload overload) : SmallVector{} {
+    for (auto p : overload.method->parameters())
+      push_back(p->getType().getCanonicalType());
+  }
+};
+} // namespace
+
+template <>
+struct llvm::DenseMapInfo<CXXOverloadArgTypes> {
+  using Sig = CXXOverloadArgTypes;
+  static inline Sig getEmptyKey() { return {{}}; }
+  static inline Sig getTombstoneKey() { return {{}, {}}; }
+  static unsigned getHashValue(const Sig &Val) {
+    return static_cast<size_t>(llvm::hash_combine_range(llvm::map_range(
+        Val, [](clang::QualType ty) { return ty.getAsOpaquePtr(); })));
+  }
+  static bool isEqual(const Sig &LHS, const Sig &RHS) { return LHS == RHS; }
+};
+
+namespace {
 /// Perform a qualified lookup for \a name in \a Record, suppressing diagnostics
 /// and returning std::nullopt if the lookup was unsuccessful.
 static std::optional<clang::LookupResult>
@@ -704,4 +740,127 @@ FuncDecl *ClangImporter::Implementation::lookupAndImportSuccessor(
   Struct->addMember(succ);
   importedSuccessorCache[Struct] = succ;
   return succ;
+}
+
+llvm::ArrayRef<SubscriptDecl *>
+ClangImporter::Implementation::lookupAndImportSubscripts(
+    NominalTypeDecl *Struct, bool noSynthesize) {
+  const auto *CXXRecord =
+      dyn_cast<clang::CXXRecordDecl>(Struct->getClangDecl());
+
+  if (!CXXRecord)
+    return {};
+
+  auto [it, inserted] = importedSubscriptsCache.try_emplace(
+      Struct, llvm::SmallVector<SubscriptDecl *, 1>{});
+  auto &result = it->second;
+
+  if (noSynthesize) {
+    ASSERT(result.empty() && "should not have cached synthesized subscripts");
+    return result;
+  }
+
+  if (!inserted)
+    return result;
+
+  // From this point onward, if we encounter some error and return, future calls
+  // to this function will return (a reference to) the empty vector we cached.
+  // Note that this may silently suppress unintentional cycles.
+
+  auto &Ctx = getClangASTContext();
+  auto &Sema = getClangSema();
+
+  auto name = Ctx.DeclarationNames.getCXXOperatorName(
+      clang::OverloadedOperatorKind::OO_Subscript);
+  auto R = lookupCXXMember(Sema, name, CXXRecord);
+  if (!R.has_value())
+    return {};
+
+  llvm::SmallDenseMap<CXXOverloadArgTypes, std::pair<CXXOverload, CXXOverload>,
+                      1>
+      CXXSubscripts;
+
+  auto overloads =
+      filterMethodOverloads(R.value(), CXXRecord, /*withTemplates=*/true);
+  for (auto overload : overloads) {
+    if (overload.method->isVolatile() ||
+        overload.method->getRefQualifier() == clang::RQ_RValue)
+      continue;
+
+    auto retTy = overload.method->getReturnType();
+    auto isSetter = (retTy->isAnyPointerType() || retTy->isReferenceType()) &&
+                    !retTy->getPointeeType().isConstQualified();
+    auto &[CXXGetter, CXXSetter] = CXXSubscripts[{overload}];
+    if (isSetter)
+      CXXSetter.pickPreferringConst(overload);
+    else
+      CXXGetter.pickPreferringConst(overload);
+  }
+
+  llvm::SmallVector<SubscriptDecl *, 1> subscripts;
+  for (auto [CXXGetter, CXXSetter] : CXXSubscripts.values()) {
+    ASSERT((CXXGetter || CXXSetter) &&
+           "subscript should have at least getter or setter");
+    FuncDecl *getter = nullptr, *setter = nullptr;
+    if (CXXGetter) {
+      getter =
+          importUnavailableMethod(*this, CXXGetter, Struct, "use subscript");
+      if (!getter)
+        continue;
+      auto name = getter->getBaseName();
+      ASSERT(!name.isSpecial() &&
+             "operator[] should not be imported with special name");
+      ASSERT(name.getIdentifier().str().starts_with("__operatorSubscript") &&
+             "operator[] should be imported as __operatorSubscript");
+      for (auto *parameter : *(getter->getParameters())) {
+        if (parameter->isInOut() || !parameter->getTypeInContext()) {
+          // Subscripts with inout parameters are not allowed in Swift.
+          getter = nullptr;
+          break;
+        }
+      }
+    }
+
+    if (CXXSetter) {
+      setter =
+          importUnavailableMethod(*this, CXXSetter, Struct, "use subscript");
+      if (!setter)
+        continue;
+
+      // Mark subscript setter as mutating in Swift even if the C++ operator
+      // is const.
+      if (!setter->getDeclContext()->isModuleScopeContext() &&
+          !Struct->getDeclaredType()->isForeignReferenceType())
+        setter->setSelfAccessKind(SelfAccessKind::Mutating);
+
+      auto name = setter->getBaseName();
+      ASSERT(!name.isSpecial() &&
+             "operator[] should not be imported with special name");
+      ASSERT(name.getIdentifier().str().starts_with("__operatorSubscript") &&
+             "operator[] should be imported as __operatorSubscript");
+      for (auto *parameter : *(setter->getParameters())) {
+        if (parameter->isInOut() || !parameter->getTypeInContext()) {
+          // Subscripts with inout parameters are not allowed in Swift.
+          setter = nullptr;
+          break;
+        }
+      }
+    }
+
+    if (!getter && !setter)
+      // Didn't end up with a usable getter or setter, so nothing to synthesize
+      continue;
+
+    SwiftDeclSynthesizer synth{*this};
+    auto *subscript = synth.makeSubscript(getter, setter);
+    if (!subscript)
+      continue;
+
+    // TODO: import attributes? The original impl doesn't seem to do this tho
+
+    Struct->addMember(subscript);
+    result.push_back(subscript);
+  }
+
+  return result;
 }
