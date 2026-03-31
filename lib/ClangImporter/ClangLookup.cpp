@@ -333,7 +333,7 @@ TinyPtrVector<ValueDecl *> ClangRecordMemberLookup::evaluate(
 
   if (inheritance) {
     // For inherited members, add members that are synthesized eagerly, such as
-    // subscripts. This is not necessary for non-inherited members because those
+    // operators. This is not necessary for non-inherited members because those
     // should already be in the lookup table.
     for (auto member :
          cast<NominalTypeDecl>(recordDecl)->getCurrentMembersWithoutLoading()) {
@@ -418,6 +418,9 @@ TinyPtrVector<ValueDecl *> ClangRecordMemberLookup::evaluate(
                name.getArgumentNames().empty()) {
       if (auto *succ = Importer.Impl.lookupAndImportSuccessor(inheritingDecl))
         result.push_back(succ);
+    } else if (name.getBaseName().isSubscript()) {
+      for (auto *sub : Importer.Impl.lookupAndImportSubscripts(inheritingDecl))
+        result.push_back(sub);
     }
   }
 

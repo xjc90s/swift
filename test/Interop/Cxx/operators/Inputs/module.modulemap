@@ -32,3 +32,8 @@ module Subscripts {
   header "subscripts.h"
   requires cplusplus
 }
+
+module SubscriptOverloads {
+  header "subscript-overloads.h"
+  requires cplusplus
+}

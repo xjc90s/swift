@@ -1949,9 +1949,8 @@ SubscriptDecl *SwiftDeclSynthesizer::makeSubscript(FuncDecl *getter,
   ImporterImpl.recordImplicitUnwrapForDecl(
       subscript, getterImpl->isImplicitlyUnwrappedOptional());
 
-  // Add the subscript as an alternative for the getter so that it
-  // gets carried into derived classes.
-  ImporterImpl.addAlternateDecl(getterImpl, subscript);
+  ImporterImpl.markMemberSynthesizedPerType(subscript);
+
   return subscript;
 }
 

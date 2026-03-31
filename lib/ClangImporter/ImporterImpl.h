@@ -672,18 +672,6 @@ public:
       llvm::DenseMap<llvm::StringRef, std::pair<FuncDecl *, FuncDecl *>>>
       GetterSetterMap;
 
-  /// Keep track of getter/setter pairs for functions imported from C++
-  /// subscript operators based on the type in which they are declared and
-  /// the type of their parameter.
-  ///
-  /// `.first` corresponds to a getter
-  /// `.second` corresponds to a setter
-  llvm::DenseMap<NominalTypeDecl *,
-                 llvm::MapVector<SmallVector<TypeBase *>,
-                                 std::pair<FuncDecl *, FuncDecl *>,
-                                 std::map<SmallVector<TypeBase *>, unsigned>>>
-      cxxSubscripts;
-
   llvm::SmallPtrSet<const clang::Decl *, 1> synthesizedAndAlwaysVisibleDecls;
 
 private:
