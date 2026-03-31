@@ -494,7 +494,8 @@ struct ResultIterator
 /// decls to clang::CXXMethodDecl *s and "looking through" using decls. It also
 /// ensures the access is set to clang::AS_none if the method is not inherited.
 static auto filterMethodOverloads(clang::LookupResult &R,
-                                  const clang::CXXRecordDecl *Origin) {
+                                  const clang::CXXRecordDecl *Origin,
+                                  bool withTemplates) {
   return llvm::make_filter_range(
       llvm::map_range(
           llvm::make_range(ResultIterator{R.begin()}, ResultIterator{R.end()}),
@@ -503,6 +504,10 @@ static auto filterMethodOverloads(clang::LookupResult &R,
 
             if (auto *usd = dyn_cast<clang::UsingShadowDecl>(nd))
               nd = usd->getTargetDecl();
+
+            if (auto *ftd = dyn_cast<clang::FunctionTemplateDecl>(nd);
+                ftd && withTemplates)
+              nd = ftd->getTemplatedDecl();
 
             if (nd->getDeclContext() == Origin)
               access = clang::AS_none; // not inherited
@@ -524,8 +529,12 @@ static FuncDecl *importUnavailableMethod(ClangImporter::Implementation &Impl,
                                          CXXOverload overload,
                                          NominalTypeDecl *Struct,
                                          StringRef unavailabilityMsg) {
-  auto *func = dyn_cast_or_null<FuncDecl>(
-      Impl.importDecl(overload.method, Impl.CurrentVersion));
+  Decl *imported;
+  if (auto *ftd = overload.method->getDescribedFunctionTemplate())
+    imported = Impl.importDecl(ftd, Impl.CurrentVersion);
+  else
+    imported = Impl.importDecl(overload.method, Impl.CurrentVersion);
+  auto *func = dyn_cast_or_null<FuncDecl>(imported);
   if (!func)
     return nullptr;
   if (auto inheritance = ClangInheritanceInfo(overload.access))
@@ -566,7 +575,8 @@ ClangImporter::Implementation::lookupAndImportPointeeAndOperatorStar(
 
   CXXOverload CXXGetter, CXXSetter;
 
-  auto overloads = filterMethodOverloads(R.value(), CXXRecord);
+  auto overloads =
+      filterMethodOverloads(R.value(), CXXRecord, /*withTemplates=*/false);
 
   for (auto overload : overloads) {
     if (overload.method->isStatic() || overload.method->isVolatile() ||
@@ -655,7 +665,8 @@ FuncDecl *ClangImporter::Implementation::lookupAndImportSuccessor(
   if (!R.has_value())
     return nullptr;
 
-  auto overloads = filterMethodOverloads(R.value(), CXXRecord);
+  auto overloads =
+      filterMethodOverloads(R.value(), CXXRecord, /*withTemplates=*/false);
 
   CXXOverload CXXMethod;
 
