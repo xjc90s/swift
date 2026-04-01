@@ -5,7 +5,6 @@
 #include "swift/ClangImporter/ClangImporterRequests.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
-#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Type.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -14,11 +13,7 @@
 using namespace swift;
 
 bool importer::hasImportReferenceAttr(const clang::RecordDecl *decl) {
-  return decl->hasAttrs() && llvm::any_of(decl->getAttrs(), [](auto *attr) {
-           if (auto swiftAttr = dyn_cast<clang::SwiftAttrAttr>(attr))
-             return swiftAttr->getAttribute() == "import_reference";
-           return false;
-         });
+  return hasSwiftAttribute(decl, {"import_reference"});
 }
 
 /// This routine determines whether \a decl is a foreign reference type, and
@@ -278,7 +273,7 @@ static void diagnoseMissingReturnsRetained(ClangImporter::Implementation &Impl,
   auto info =
       evaluateOrDefault(Impl.SwiftContext.evaluator,
                         ForeignReferenceTypeInfoRequest({recordDecl}), {});
-  if (!info.isReference() || importer::hasImmortalAttrs(recordDecl))
+  if (!info.isReference() || importer::hasAnyImmortalAttr(recordDecl))
     return; // recordDecl is not a shared reference type
 
   if (importer::matchSwiftAttr<bool>(
