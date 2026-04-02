@@ -518,7 +518,7 @@ extension Span where Element: BitwiseCopyable {
   public var bytes: RawSpan {
     @lifetime(copy self)
     get {
-      let rawSpan = unsafe RawSpan(_elements: self)
+      let rawSpan = unsafe RawSpan(unsafeElements: self)
       return unsafe _overrideLifetime(rawSpan, copying: self)
     }
   }
