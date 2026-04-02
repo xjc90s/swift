@@ -134,7 +134,7 @@ extension MutableRawSpan {
 
   /// Mutate the elements of a typed span as raw bytes.
   @_lifetime(&mutableSpan)
-  init<Element: ConvertibleFromRawBytes & ConvertibleToRawBytes>(
+  init<Element: ConvertibleFromBytes & ConvertibleToBytes>(
     mutating mutableSpan: inout MutableSpan<Element>
   ) {
     unsafe self = Self.init(_elements: &mutableSpan)
@@ -142,7 +142,7 @@ extension MutableRawSpan {
 
   /// Convert a typed span to a raw span.
   @_lifetime(copy span)
-  init<Element: ConvertibleToRawBytes>(_ span: consuming MutableSpan<Element>) {
+  init<Element: ConvertibleToBytes>(_ span: consuming MutableSpan<Element>) {
     unsafe self = _overrideLifetime(
       Self.init(
         _unchecked: span._pointer,
@@ -451,7 +451,7 @@ extension MutableRawSpan {
   ///   - type: The type of the instance to create.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
-  func load<T: ConvertibleFromRawBytes>(
+  func load<T: ConvertibleFromBytes>(
     fromByteOffset offset: Int = 0,
     as: T.Type = T.self
   ) -> T {
@@ -471,7 +471,7 @@ extension MutableRawSpan {
   ///   - byteOrder: The order in which the bytes should be decoded.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
-  func load<T: ConvertibleFromRawBytes & FixedWidthInteger>(
+  func load<T: ConvertibleFromBytes & FixedWidthInteger>(
     fromByteOffset offset: Int = 0,
     as: T.Type = T.self,
     _ byteOrder: ByteOrder
@@ -537,7 +537,7 @@ extension MutableRawSpan {
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   mutating func storeBytes<
-    T: ConvertibleToRawBytes & BitwiseCopyable & FixedWidthInteger
+    T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger
   >(
     of value: T,
     toByteOffset offset: Int = 0,
