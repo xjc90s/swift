@@ -133,6 +133,7 @@ extension MutableRawSpan {
   }
 
   /// Mutate the elements of a typed span as bytes.
+  @_alwaysEmitIntoClient
   @_lifetime(&elements)
   public init<Element: ConvertibleFromBytes & ConvertibleToBytes>(
     mutating elements: inout MutableSpan<Element>
@@ -149,6 +150,7 @@ extension MutableRawSpan {
   }
 
   /// Convert a typed span to a raw span.
+  @_alwaysEmitIntoClient
   @_lifetime(copy elements)
   public init<Element: ConvertibleToBytes>(
     elements: consuming MutableSpan<Element>
@@ -157,6 +159,7 @@ extension MutableRawSpan {
   }
 
   /// Unsafely convert a typed span to a raw span.
+  @_alwaysEmitIntoClient
   @unsafe
   @_lifetime(copy elements)
   public init<Element>(
