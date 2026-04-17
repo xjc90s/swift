@@ -19,23 +19,30 @@ import Musl
 import Glibc
 #endif
 
-extension Atomic where Value == UInt32 {
-  // This returns 'false' on success and 'true' on error. Check 'errno' for the
-  // specific error value.
-  internal borrowing func _futexLock() -> UInt32 {
-    unsafe _swift_stdlib_futex_lock(.init(_rawAddress))
+extension Atomic where Value == _MutexHandle.State {
+  // Sleeps while the underlying word equals `expected`. Returns 0 on a normal
+  // wake or the errno value (EAGAIN=11 and EINTR=4 are the expected retryable
+  // cases).
+  internal borrowing func _futexWait(expected: _MutexHandle.State) -> UInt32 {
+    unsafe _swift_stdlib_futex_wait(.init(_rawAddress), expected.rawValue)
   }
 
-  // This returns 'false' on success and 'true' on error. Check 'errno' for the
-  // specific error value.
-  internal borrowing func _futexTryLock() -> UInt32 {
-    unsafe _swift_stdlib_futex_trylock(.init(_rawAddress))
+  // Wakes up to `count` waiters parked on this word. Result is the number
+  // woken (or errno on failure); callers typically discard it.
+  internal borrowing func _futexWake(count: UInt32) -> UInt32 {
+    unsafe _swift_stdlib_futex_wake(.init(_rawAddress), count)
   }
+}
 
-  // This returns 'false' on success and 'true' on error. Check 'errno' for the
-  // specific error value.
-  internal borrowing func _futexUnlock() -> UInt32 {
-    unsafe _swift_stdlib_futex_unlock(.init(_rawAddress))
+@available(SwiftStdlib 6.0, *)
+extension _MutexHandle {
+  @available(SwiftStdlib 6.0, *)
+  @frozen
+  @usableFromInline
+  internal enum State: UInt32, AtomicRepresentable {
+    case unlocked
+    case locked      // held, no waiters parked in the kernel
+    case contended   // held, at least one waiter parked in the kernel
   }
 }
 
@@ -43,18 +50,14 @@ extension Atomic where Value == UInt32 {
 @frozen
 @_staticExclusiveOnly
 public struct _MutexHandle: ~Copyable {
-  // There are only 3 different values that storage can hold at a single time.
-  // 0: unlocked
-  // TID: locked, current thread's id (uncontended)
-  // (TID | FUTEX_WAITERS): locked, current thread's id (contended)
   @usableFromInline
-  let storage: Atomic<UInt32>
+  let storage: Atomic<State>
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   public init() {
-    storage = Atomic(0)
+    storage = Atomic(.unlocked)
   }
 }
 
@@ -64,12 +67,9 @@ extension _MutexHandle {
   @_alwaysEmitIntoClient
   @_transparent
   internal borrowing func _lock() {
-    // Note: This is being TLS cached.
-    let selfId = _swift_stdlib_gettid()
-
     let (exchanged, _) = storage.compareExchange(
-      expected: 0,
-      desired: selfId,
+      expected: .unlocked,
+      desired: .locked,
       successOrdering: .acquiring,
       failureOrdering: .relaxed
     )
@@ -79,9 +79,16 @@ extension _MutexHandle {
       return
     }
 
-    _lockSlow(selfId)
+    _lockSlow(0)
   }
 
+  // Slow path for `_lock`: runs a bounded adaptive spin, then parks in the kernel via FUTEX_WAIT. The spin is adaptive in two
+  // senses: the number of CPU pauses issued per iteration grows exponentially round-to-round, and its upper bound is
+  // re-chosen each iteration from the lock state we just observed. The exact upper-bound values and reasoning are inline at
+  // the `maxPauseCount` declaration below.
+  //
+  // `selfId` is retained only to preserve the mangled ABI symbol for clients compiled against the previous PI-futex
+  // implementation; the plain-futex code has no need for a thread id.
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _lockSlow(_ selfId: UInt32) {
@@ -90,13 +97,16 @@ extension _MutexHandle {
     // where the current owner thread's critical section is somewhat quick. We
     // avoid a lot of the syscall overhead in these cases which allow both the
     // owner thread and this current thread to do the user-space atomic for
-    // releasing and acquiring (assuming no existing waiters). The waiter bit is
-    // typically unset when a call to 'FUTEX_UNLOCK_PI' has no other pi state,
-    // meaning there is no one else waiting to acquire the lock.
+    // releasing and acquiring (assuming no existing waiters).
     do {
-      // This value is controlled on a per architecture bases defined in
-      // 'SpinLoopHint.swift'.
-      var tries = _tries
+      // Total spin-loop iterations we are willing to run before giving up and asking the kernel to park us.
+      var spinsRemaining: Int = 14
+
+      // Number of `_spinLoopHint()` CPU pauses we will issue on the current iteration before re-checking the lock word.
+      // Grows exponentially (4 -> 8 -> 16 -> 32) up to the per-iteration `maxPauseCount`. The initial value of 4 is a floor
+      // chosen over 1 to skip the first few iterations where the lock state has not yet had time to change and tight
+      // back-to-back loads would generate wasted cache traffic for no information gain.
+      var pauseCount: UInt32 = 4
 
       repeat {
         // Do a relaxed load of the futex value to prevent introducing a memory
@@ -108,9 +118,9 @@ extension _MutexHandle {
         // able to attempt to acquire the lock.
         let state = storage.load(ordering: .relaxed)
 
-        if state == 0, storage.compareExchange(
-          expected: 0,
-          desired: selfId,
+        if state == .unlocked, storage.compareExchange(
+          expected: .unlocked,
+          desired: .locked,
           successOrdering: .acquiring,
           failureOrdering: .relaxed
         ).exchanged {
@@ -118,81 +128,66 @@ extension _MutexHandle {
           return
         }
 
-        tries &-= 1
+        spinsRemaining &-= 1
+
+        // Upper bound on `pauseCount` for this iteration - i.e. the maximum number of `_spinLoopHint()` CPU pauses we will
+        // issue before re-checking the lock word. Chosen per iteration from the state we just observed:
+        //
+        //   state == contended (at least one waiter is parked in the kernel):
+        //     maxPauseCount = 6.
+        //     Short pauses let us re-check the lock word often enough to catch the narrow release window when the owner
+        //     unlocks, before the kernel wakes the parked waiter.
+        //
+        //   state == locked, or state == unlocked but our CAS just lost:
+        //     maxPauseCount = 32.
+        //     Long pauses give the owner (or the thread that just beat us to the CAS) CPU time to finish its critical
+        //     section, and avoid generating exclusive-state cache traffic that would fight the owner's access to the lock.
+        let maxPauseCount: UInt32 = (state == .contended) ? 6 : 32
 
         // Inform the CPU that we're doing a spin loop which should have the
         // effect of slowing down this loop if only by a little to preserve
         // energy.
-        _spinLoopHint()
-      } while tries != 0
+        for _ in 0 ..< pauseCount {
+          _spinLoopHint()
+        }
+
+        if pauseCount < maxPauseCount {
+          // Exponential doubling to back off.
+          pauseCount &<<= 1
+        } else if pauseCount > maxPauseCount {
+          // The cap just dropped - e.g. the lock state flipped from `locked` to `contended` on this iteration, so
+          // `maxPauseCount` went from 32 down to 6 while `pauseCount` had already grown to 8, 16, or 32. Force `pauseCount`
+          // back down to the new ceiling so the short-pause budget takes effect on the very next iteration.
+          pauseCount = maxPauseCount
+        }
+      } while spinsRemaining > 0
     }
 
-    // We've exhausted our spins. Ask the kernel to block for us until the owner
-    // releases the lock.
+    // We've exhausted our spins. Mark the lock contended and ask the kernel to block for us until the owner releases.
     //
-    // Note: The kernel will attempt to acquire the lock for us as well which
-    // could succeed if the owner releases in between finishing spinning the
-    // futex syscall.
+    // exchange(contended) marks the lock "has waiters" unconditionally. If the previous value was `unlocked` the owner released
+    // between our last spin iteration and this exchange - we have just acquired (the next unlock will emit one spurious
+    // FUTEX_WAKE, which is harmless). Otherwise the lock is still held and `*word == contended`, so the next unlock is
+    // guaranteed to wake us.
     while true {
-      // Block until an equivalent '_futexUnlock' has been called by the owner.
-      // This returns '0' on success which means the kernel has acquired the
-      // lock for us.
-      let lockResult = storage._futexLock()
-      switch lockResult {
-      case 0:
+      let prev = storage.exchange(.contended, ordering: .acquiring)
+      if prev == .unlocked {
         // Locked!
         return
+      }
 
-      // EINTR  - "A FUTEX_WAIT or FUTEX_WAIT_BITSET operation was interrupted
-      //           by a signal (see signal(7)). Before Linux 2.6.22, this error
-      //           could also be returned for a spurious wakeup; since Linux
-      //           2.6.22, this no longer happens."
-      // EAGAIN - "The futex owner thread ID of uaddr is about to exit, but has
-      //           not yet handled the internal state cleanup. Try again."
-      case 4, 11:
+      // Sleep while `*word == contended`. Returns 0 on a normal wake from FUTEX_WAKE, or an errno for retryable cases.
+      let waitResult = storage._futexWait(expected: .contended)
+      switch waitResult {
+      // 0      - woken normally by FUTEX_WAKE from the unlocker
+      // EAGAIN - *word changed before the kernel-side comparison; retry
+      // EINTR  - signal-interrupted before sleep; retry
+      case 0, 11, 4:
         continue
 
-      // EDEADLK - "The futex word at uaddr is already locked by the caller."
-      case 35:
-        // TODO: Replace with a colder function / one that takes a StaticString
-        fatalError("Recursive call to lock Mutex")
-
-      // This handles all of the following errors which generally aren't
-      // applicable to this implementation:
-      //
-      // EACCES - "No read access to the memory of a futex word."
-      // EFAULT - "A required pointer argument did not point to a valid
-      //           user-space address."
-      // EINVAL - "The operation in futex_op is one of those that employs a
-      //           timeout, but the supplied timeout argument was invalid
-      //           (tv_sec was less than zero, or tv_nsec was not less than
-      //           1,000,000,000)."
-      //          OR
-      //          "The operation specified in futex_op employs one or both of
-      //           the pointers uaddr and uaddr2, but one of these does not
-      //           point to a valid object—that is, the address is not four-
-      //           byte-aligned."
-      //          OR
-      //          "The kernel detected an inconsistency between the user-space
-      //           state at uaddr and the kernel state. This indicates either
-      //           state corruption or that the kernel found a waiter on uaddr
-      //           which is waiting via FUTEX_WAIT or FUTEX_WAIT_BITSET."
-      //          OR
-      //          "Invalid argument."
-      // ENOMEM - "The kernel could not allocate memory to hold state
-      //           information."
-      // ENOSYS - "Invalid operation specified in futex_op."
-      //          OR
-      //          "A run-time check determined that the operation is not
-      //           available. The PI-futex operations are not implemented on all
-      //           architectures and are not supported on some CPU variants."
-      // EPERM  - "The caller is not allowed to attach itself to the futex at
-      //           uaddr (This may be caused by a state corruption in user
-      //           space.)"
-      // ESRCH  - "The thread ID in the futex word at uaddr does not exist."
       default:
         // TODO: Replace with a colder function / one that takes a StaticString
-        fatalError("Unknown error occurred while attempting to acquire a Mutex: \(lockResult)")
+        fatalError("Unknown error occurred while attempting to acquire a Mutex: \(waitResult)")
       }
     }
   }
@@ -201,12 +196,11 @@ extension _MutexHandle {
   @_alwaysEmitIntoClient
   @_transparent
   internal borrowing func _tryLock() -> Bool {
-    // Do a user space cmpxchg to see if we can easily acquire the lock.
+    // Do a user space cmpxchg to see if we can easily acquire the lock. The lock word goes from `unlocked` directly to
+    // `locked` on success - there is no intermediate state and no kernel involvement.
     if storage.compareExchange(
-      expected: 0,
-
-      // Note: This is being TLS cached.
-      desired: _swift_stdlib_gettid(),
+      expected: .unlocked,
+      desired: .locked,
       successOrdering: .acquiring,
       failureOrdering: .relaxed
     ).exchanged {
@@ -214,91 +208,27 @@ extension _MutexHandle {
       return true
     }
 
-    // The quick atomic op failed, ask the kernel to see if it can acquire the
-    // lock for us.
+    // The CAS failed, so the lock is currently held by someone else. Plain futex has no kernel-side recovery path that could
+    // change that answer, so fall through to `_tryLockSlow` which just returns false.
     return _tryLockSlow()
   }
 
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _tryLockSlow() -> Bool {
-    // Note: "Because the kernel has access to more state information than user
-    //        space, acquisition of the lock might succeed if performed by the
-    //        kernel in cases where the futex word (i.e., the state information
-    //        accessible to use-space) contains stale state (FUTEX_WAITERS
-    //        and/or FUTEX_OWNER_DIED). This can happen when the owner of the
-    //        futex died. User space cannot handle this condition in a race-free
-    //        manner, but the kernel can fix this up and acquire the futex."
-    switch storage._futexTryLock() {
-    case 0:
-      // Locked!
-      return true
-
-    // EDEADLK - "The futex word at uaddr is already locked by the caller."
-    case 35:
-      return false
-
-    // This handles all of the following errors which generally aren't
-    // applicable to this implementation:
-    //
-    // EACCES - "No read access to the memory of a futex word."
-    // EAGAIN - "The futex owner thread ID of uaddr is about to exit, but has
-    //           not yet handled the internal state cleanup. Try again."
-    // EFAULT - "A required pointer argument did not point to a valid
-    //           user-space address."
-    // EINVAL - "The operation in futex_op is one of those that employs a
-    //           timeout, but the supplied timeout argument was invalid
-    //           (tv_sec was less than zero, or tv_nsec was not less than
-    //           1,000,000,000)."
-    //          OR
-    //          "The operation specified in futex_op employs one or both of
-    //           the pointers uaddr and uaddr2, but one of these does not
-    //           point to a valid object—that is, the address is not four-
-    //           byte-aligned."
-    //          OR
-    //          "The kernel detected an inconsistency between the user-space
-    //           state at uaddr and the kernel state. This indicates either
-    //           state corruption or that the kernel found a waiter on uaddr
-    //           which is waiting via FUTEX_WAIT or FUTEX_WAIT_BITSET."
-    //          OR
-    //          "Invalid argument."
-    // ENOMEM - "The kernel could not allocate memory to hold state
-    //           information."
-    // ENOSYS - "Invalid operation specified in futex_op."
-    //          OR
-    //          "A run-time check determined that the operation is not
-    //           available. The PI-futex operations are not implemented on all
-    //           architectures and are not supported on some CPU variants."
-    // EPERM  - "The caller is not allowed to attach itself to the futex at
-    //           uaddr (This may be caused by a state corruption in user
-    //           space.)"
-    // ESRCH  - "The thread ID in the futex word at uaddr does not exist."
-    default:
-      // Note: We could maybe retry this operation when given EAGAIN, but this
-      //       is more or less supposed to be a quick yes/no.
-      return false
-    }
+    // Retained for ABI compatibility with clients compiled against the prior PI-futex implementation whose inlined `_tryLock`
+    // bodies reference this mangled symbol. Plain futex has no kernel-side trylock recovery path, so if the userspace CAS in
+    // `_tryLock` failed the lock is simply held by someone else.
+    return false
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   internal borrowing func _unlock() {
-    // Note: This is being TLS cached.
-    let selfId = _swift_stdlib_gettid()
-
-    // Attempt to release the lock. We can only atomically release the lock in
-    // user-space when there are no other waiters. If there are waiters, the
-    // waiter bit is set and we need to inform the kernel that we're unlocking.
-    let (exchanged, _) = storage.compareExchange(
-      expected: selfId,
-      desired: 0,
-      successOrdering: .releasing,
-      failureOrdering: .relaxed
-    )
-
-    if _fastPath(exchanged) {
-      // No waiters, unlocked!
+    // If the previous value was `contended`, a waiter is parked in the kernel and we must wake one via FUTEX_WAKE.
+    guard storage.exchange(.unlocked, ordering: .releasing) == .contended else {
+      // Unlocked, syscall-free (the common case).
       return
     }
 
@@ -308,62 +238,9 @@ extension _MutexHandle {
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _unlockSlow() {
-    while true {
-      let unlockResult = storage._futexUnlock()
-      switch unlockResult {
-      case 0:
-        // Unlocked!
-        return
-
-      // EINTR  - "A FUTEX_WAIT or FUTEX_WAIT_BITSET operation was interrupted
-      //           by a signal (see signal(7)). Before Linux 2.6.22, this error
-      //           could also be returned for a spurious wakeup; since Linux
-      //           2.6.22, this no longer happens."
-      case 4:
-        continue
-
-      // EPERM  - "The caller does not own the lock represented by the futex
-      //           word."
-      case 1:
-        // TODO: Replace with a colder function / one that takes a StaticString
-        fatalError(
-          "Call to unlock Mutex on a thread which hasn't acquired the lock"
-        )
-
-      // This handles all of the following errors which generally aren't
-      // applicable to this implementation:
-      //
-      // EACCES - "No read access to the memory of a futex word."
-      // EFAULT - "A required pointer argument did not point to a valid
-      //           user-space address."
-      // EINVAL - "The operation in futex_op is one of those that employs a
-      //           timeout, but the supplied timeout argument was invalid
-      //           (tv_sec was less than zero, or tv_nsec was not less than
-      //           1,000,000,000)."
-      //          OR
-      //          "The operation specified in futex_op employs one or both of
-      //           the pointers uaddr and uaddr2, but one of these does not
-      //           point to a valid object—that is, the address is not four-
-      //           byte-aligned."
-      //          OR
-      //          "The kernel detected an inconsistency between the user-space
-      //           state at uaddr and the kernel state. This indicates either
-      //           state corruption or that the kernel found a waiter on uaddr
-      //           which is waiting via FUTEX_WAIT or FUTEX_WAIT_BITSET."
-      //          OR
-      //          "Invalid argument."
-      // ENOSYS - "Invalid operation specified in futex_op."
-      //          OR
-      //          "A run-time check determined that the operation is not
-      //           available. The PI-futex operations are not implemented on all
-      //           architectures and are not supported on some CPU variants."
-      // EPERM  - "The caller is not allowed to attach itself to the futex at
-      //           uaddr (This may be caused by a state corruption in user
-      //           space.)"
-      default:
-        // TODO: Replace with a colder function / one that takes a StaticString
-        fatalError("Unknown error occurred while attempting to release a Mutex: \(unlockResult)")
-      }
-    }
+    // Wake exactly one parked waiter. Any other parked waiters, plus threads still spinning on the acquire path, will
+    // compete for the lock on the next release. FUTEX_WAKE's return value (count actually woken) is not needed here - a
+    // wake targeting an already-departed waiter is harmless.
+    _ = storage._futexWake(count: 1)
   }
 }

@@ -32,6 +32,10 @@ static inline __swift_uint32_t _swift_stdlib_gettid() {
   return tid;
 }
 
+// The three `_swift_stdlib_futex_lock` / `_trylock` / `_unlock` helpers below are the PI-futex shims used by the previous
+// Mutex implementation on Linux; the current plain-futex implementation in LinuxImpl.swift no longer calls them. They are
+// retained here only to minimize the diff against the prior header surface - being `static inline`, unused copies carry no
+// link-time cost. Safe to delete if a later cleanup pass wants to drop them.
 static inline __swift_uint32_t _swift_stdlib_futex_lock(__swift_uint32_t *lock) {
   int ret = syscall(SYS_futex, lock, FUTEX_LOCK_PI_PRIVATE,
                     /* val */ 0, // this value is ignored by this futex op
@@ -59,6 +63,34 @@ static inline __swift_uint32_t _swift_stdlib_futex_unlock(__swift_uint32_t *lock
 
   if (ret == 0) {
     return ret;
+  }
+
+  return errno;
+}
+
+// Plain-futex wait: sleeps if *addr == expected. Returns 0 on success
+// (woken by FUTEX_WAKE) or the errno value (EAGAIN=11, EINTR=4 are the
+// expected retryable cases).
+static inline __swift_uint32_t _swift_stdlib_futex_wait(
+    __swift_uint32_t *addr, __swift_uint32_t expected) {
+  int ret = syscall(SYS_futex, addr, FUTEX_WAIT_PRIVATE, expected,
+                    /* timeout */ NULL);
+
+  if (ret == 0) {
+    return 0;
+  }
+
+  return errno;
+}
+
+// Plain-futex wake: wakes up to `count` waiters parked on `addr`.
+// Returns the number woken on success, or the errno value on failure.
+static inline __swift_uint32_t _swift_stdlib_futex_wake(
+    __swift_uint32_t *addr, __swift_uint32_t count) {
+  int ret = syscall(SYS_futex, addr, FUTEX_WAKE_PRIVATE, count);
+
+  if (ret >= 0) {
+    return (__swift_uint32_t)ret;
   }
 
   return errno;
