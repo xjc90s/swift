@@ -19,6 +19,18 @@ import Musl
 import Glibc
 #endif
 
+@_extern(c, "llvm.readcyclecounter")
+internal func _readCycleCounter() -> UInt64
+
+@inline(__always)
+internal func _cycleCounter() -> UInt64 {
+#if arch(i386) || arch(x86_64)
+  return _readCycleCounter()
+#else
+  return 0
+#endif
+}
+
 extension Atomic where Value == _MutexHandle.State {
   // Sleeps while the underlying word equals `expected`. Returns 0 on a normal
   // wake or the errno value (EAGAIN=11 and EINTR=4 are the expected retryable
@@ -53,13 +65,31 @@ public struct _MutexHandle: ~Copyable {
   @usableFromInline
   let storage: Atomic<State>
 
+  // Approximate count of threads currently in `_lockSlow`'s kernel phase. Read by the entry depth gate;
+  // inexact (e.g. counts briefly run between wake and retry), but used only as a hint.
+  @usableFromInline
+  let slowPathDepth: Atomic<UInt32>
+
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   public init() {
     storage = Atomic(.unlocked)
+    slowPathDepth = Atomic(0)
   }
 }
+
+// Spin-phase iteration budget.
+private let spinTries: Int = 20
+
+// CPU pauses per spin iteration, before jitter. Must be a power of two (masked to generate the jitter via
+// `jitter & (pauseBase - 1)`).
+private let pauseBase: UInt32 = 64
+
+// Once this many threads are already waiting for the lock, new arrivals skip the spin loop and go to sleep
+// immediately. Keeps the set of actively-spinning threads bounded so the lock holder's critical section runs
+// without cache-line interference from the spinners.
+private let maxActiveSpinners: UInt32 = 4
 
 @available(SwiftStdlib 6.0, *)
 extension _MutexHandle {
@@ -82,40 +112,34 @@ extension _MutexHandle {
     _lockSlow(0)
   }
 
-  // Slow path for `_lock`: runs a bounded adaptive spin, then parks in the kernel via FUTEX_WAIT. The spin is adaptive in two
-  // senses: the number of CPU pauses issued per iteration grows exponentially round-to-round, and its upper bound is
-  // re-chosen each iteration from the lock state we just observed. The exact upper-bound values and reasoning are inline at
-  // the `maxPauseCount` declaration below.
+  // Slow path for `_lock`:
+  //   - Depth gate: if the queue is already deep, skip straight to parking. Bounds tail latency and keeps the spinner
+  //     pool small so the owner's critical section runs uncontested.
+  //   - Spin: bounded pause-based spin with per-thread jitter. Stops early if the lock is observed contended, so we
+  //     don't steal it from a thread the kernel is about to wake.
+  //   - Kernel: loop try-acquire plus FUTEX_WAIT until acquired. A thread that has to park bumps `slowPathDepth` on
+  //     its first failed try-acquire and drops it on successful acquire. This feeds the depth gate: once enough
+  //     threads are parked, new arrivals skip spinning and park directly, which stops spinners from stealing the
+  //     lock out from under parked threads and bounds tail latency. Threads that win the initial try-acquire never
+  //     touch the counter.
   //
-  // `selfId` is retained only to preserve the mangled ABI symbol for clients compiled against the previous PI-futex
-  // implementation; the plain-futex code has no need for a thread id.
+  // `selfId` is retained only to preserve the mangled ABI symbol from the prior PI-futex implementation.
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _lockSlow(_ selfId: UInt32) {
-    // Before relinquishing control to the kernel to block this particular
-    // thread, run a little spin lock to keep this thread busy in the scenario
-    // where the current owner thread's critical section is somewhat quick. We
-    // avoid a lot of the syscall overhead in these cases which allow both the
-    // owner thread and this current thread to do the user-space atomic for
-    // releasing and acquiring (assuming no existing waiters).
-    do {
-      // Total spin-loop iterations we are willing to run before giving up and asking the kernel to park us.
-      var spinsRemaining: Int = 14
+    // Skip the spin when the queue is already deep - extra spinners just slow down the parked threads' handoff.
+    let initialState = storage.load(ordering: .acquiring)
+    let depth = slowPathDepth.load(ordering: .acquiring)
+    let skipSpin = (initialState == .contended) && (depth >= maxActiveSpinners)
 
-      // Number of `_spinLoopHint()` CPU pauses we will issue on the current iteration before re-checking the lock word.
-      // Grows exponentially (4 -> 8 -> 16 -> 32) up to the per-iteration `maxPauseCount`. The initial value of 4 is a floor
-      // chosen over 1 to skip the first few iterations where the lock state has not yet had time to change and tight
-      // back-to-back loads would generate wasted cache traffic for no information gain.
-      var pauseCount: UInt32 = 4
+    if !skipSpin {
+      // Cycle-counter low bits provide per-thread jitter to de-correlate pause timings across threads released
+      // together by a lock handoff.
+      let jitter = UInt32(truncatingIfNeeded: _cycleCounter())
+      let mask = pauseBase &- 1
+      var spinsRemaining = spinTries
 
-      repeat {
-        // Do a relaxed load of the futex value to prevent introducing a memory
-        // barrier on each iteration of this loop. We're already informing the
-        // CPU that this is a spin loop via the '_spinLoopHint' call which
-        // should hopefully slow down the loop a considerable amount to view an
-        // actually change in the value potentially. An extra memory barrier
-        // would make it even slower on top of the fact that we may not even be
-        // able to attempt to acquire the lock.
+      while spinsRemaining > 0 {
         let state = storage.load(ordering: .relaxed)
 
         if state == .unlocked, storage.compareExchange(
@@ -128,52 +152,38 @@ extension _MutexHandle {
           return
         }
 
-        spinsRemaining &-= 1
-
-        // Upper bound on `pauseCount` for this iteration - i.e. the maximum number of `_spinLoopHint()` CPU pauses we will
-        // issue before re-checking the lock word. Chosen per iteration from the state we just observed:
-        //
-        //   state == contended (at least one waiter is parked in the kernel):
-        //     maxPauseCount = 6.
-        //     Short pauses let us re-check the lock word often enough to catch the narrow release window when the owner
-        //     unlocks, before the kernel wakes the parked waiter.
-        //
-        //   state == locked, or state == unlocked but our CAS just lost:
-        //     maxPauseCount = 32.
-        //     Long pauses give the owner (or the thread that just beat us to the CAS) CPU time to finish its critical
-        //     section, and avoid generating exclusive-state cache traffic that would fight the owner's access to the lock.
-        let maxPauseCount: UInt32 = (state == .contended) ? 6 : 32
+        // Don't steal the lock from a thread the kernel is about to wake.
+        if state == .contended { break }
 
         // Inform the CPU that we're doing a spin loop which should have the
         // effect of slowing down this loop if only by a little to preserve
         // energy.
-        for _ in 0 ..< pauseCount {
+        let pauses = pauseBase &+ (jitter & mask)
+        for _ in 0 ..< pauses {
           _spinLoopHint()
         }
 
-        if pauseCount < maxPauseCount {
-          // Exponential doubling to back off.
-          pauseCount &<<= 1
-        } else if pauseCount > maxPauseCount {
-          // The cap just dropped - e.g. the lock state flipped from `locked` to `contended` on this iteration, so
-          // `maxPauseCount` went from 32 down to 6 while `pauseCount` had already grown to 8, 16, or 32. Force `pauseCount`
-          // back down to the new ceiling so the short-pause budget takes effect on the very next iteration.
-          pauseCount = maxPauseCount
-        }
-      } while spinsRemaining > 0
+        spinsRemaining -= 1
+      }
     }
 
-    // We've exhausted our spins. Mark the lock contended and ask the kernel to block for us until the owner releases.
-    //
-    // exchange(contended) marks the lock "has waiters" unconditionally. If the previous value was `unlocked` the owner released
-    // between our last spin iteration and this exchange - we have just acquired (the next unlock will emit one spurious
-    // FUTEX_WAKE, which is harmless). Otherwise the lock is still held and `*word == contended`, so the next unlock is
-    // guaranteed to wake us.
+    var visibleToSpinners = false
+
     while true {
-      let prev = storage.exchange(.contended, ordering: .acquiring)
-      if prev == .unlocked {
+      // `.contended`, not `.locked`: parked threads exist and must be woken by the next unlock.
+      if storage.exchange(.contended, ordering: .acquiring) == .unlocked {
+        if visibleToSpinners {
+          _ = slowPathDepth.wrappingSubtract(1, ordering: .relaxed)
+        }
         // Locked!
         return
+      }
+
+      // Didn't get the lock - either it's still held, or we were woken but a spinner / fast-path arrival got in first.
+      if !visibleToSpinners {
+        // Make arriving threads park instead of spinning, so parked threads can make progress.
+        _ = slowPathDepth.wrappingAdd(1, ordering: .relaxed)
+        visibleToSpinners = true
       }
 
       // Sleep while `*word == contended`. Returns 0 on a normal wake from FUTEX_WAKE, or an errno for retryable cases.
@@ -196,8 +206,8 @@ extension _MutexHandle {
   @_alwaysEmitIntoClient
   @_transparent
   internal borrowing func _tryLock() -> Bool {
-    // Do a user space cmpxchg to see if we can easily acquire the lock. The lock word goes from `unlocked` directly to
-    // `locked` on success - there is no intermediate state and no kernel involvement.
+    // Userspace CAS unlocked -> locked. Plain futex has no kernel-side recovery path, so if the CAS fails the lock is
+    // held by someone else and no retry can change that.
     if storage.compareExchange(
       expected: .unlocked,
       desired: .locked,
@@ -208,17 +218,13 @@ extension _MutexHandle {
       return true
     }
 
-    // The CAS failed, so the lock is currently held by someone else. Plain futex has no kernel-side recovery path that could
-    // change that answer, so fall through to `_tryLockSlow` which just returns false.
     return _tryLockSlow()
   }
 
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _tryLockSlow() -> Bool {
-    // Retained for ABI compatibility with clients compiled against the prior PI-futex implementation whose inlined `_tryLock`
-    // bodies reference this mangled symbol. Plain futex has no kernel-side trylock recovery path, so if the userspace CAS in
-    // `_tryLock` failed the lock is simply held by someone else.
+    // Retained only to preserve the mangled ABI symbol from the prior PI-futex implementation.
     return false
   }
 
@@ -238,9 +244,7 @@ extension _MutexHandle {
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
   internal borrowing func _unlockSlow() {
-    // Wake exactly one parked waiter. Any other parked waiters, plus threads still spinning on the acquire path, will
-    // compete for the lock on the next release. FUTEX_WAKE's return value (count actually woken) is not needed here - a
-    // wake targeting an already-departed waiter is harmless.
+    // Wake exactly one parked waiter. Remaining parkers and newly-arriving spinners compete on the next release.
     _ = storage._futexWake(count: 1)
   }
 }
