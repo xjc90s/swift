@@ -9,6 +9,55 @@
 // See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
 //
 //===----------------------------------------------------------------------===//
+//
+// Plain-futex Mutex: 3-state lock word, bounded spin, kernel fallback.
+//
+// ```mermaid
+// flowchart TD
+//     subgraph lockflow ["_lock()"]
+//         fastCAS{{"compareExchange(.unlocked, .locked)"}}
+//         fastCAS -- "exchanged == true" --> locked([LOCKED])
+//         fastCAS -- "exchanged == false" --> slow([_lockSlow])
+//
+//         slow --> stateCheck{"initialState == .contended?"}
+//         stateCheck -- no --> spinTry
+//         stateCheck -- yes --> depthCheck{"depth >= maxActiveSpinners?"}
+//         depthCheck -- no --> spinTry
+//         depthCheck -- yes --> parkClaim
+//
+//         subgraph spinloop ["spin loop (repeat while spinsRemaining > 0)"]
+//             spinTry{{"compareExchange(.unlocked, .locked)"}} -- "exchanged == false, state == .locked" --> pause["pause CPU<br/>(pauseBase + per-thread jitter)"]
+//             pause --> spinsCheck{"spinsRemaining -= 1<br/>spinsRemaining > 0?"}
+//             spinsCheck -- yes --> spinTry
+//         end
+//         spinTry -- "exchanged == true" --> locked
+//         spinTry -- "state == .contended" --> parkClaim
+//         spinsCheck -- no --> parkClaim
+//
+//         subgraph parkloop ["park loop (while true)"]
+//             parkClaim["storage.exchange(.contended)"] --> exchResult{"returned == .unlocked?"}
+//             exchResult -- no --> inc["slowPathDepth += 1<br/>(first miss only)"]
+//             inc --> wait[["_futexWait(expected: .contended)"]]
+//             wait -- "woken / EAGAIN / EINTR" --> parkClaim
+//         end
+//         exchResult -- yes --> dec["slowPathDepth -= 1<br/>(if previously bumped)"]
+//         dec --> locked
+//     end
+//
+//     subgraph unlockflow ["_unlock()"]
+//         unlockSwap{{"storage.exchange(.unlocked)"}}
+//         unlockSwap -- "== .locked" --> done([done])
+//         unlockSwap -- "== .contended" --> wake[["_futexWake(count: 1)"]]
+//     end
+//
+//     wake -. wakes parker .-> wait
+//
+//     %% highlight loop back-edges (spin continue, park retry)
+//     linkStyle 9 stroke:#ff8800,stroke-width:2px
+//     linkStyle 16 stroke:#ff8800,stroke-width:2px
+// ```
+//
+//===----------------------------------------------------------------------===//
 
 import _SynchronizationShims
 #if canImport(Android)
@@ -33,7 +82,7 @@ internal func _cycleCounter() -> UInt64 {
 
 extension Atomic where Value == _MutexHandle.State {
   // Sleeps while the underlying word equals `expected`. Returns 0 on a normal
-  // wake or the errno value (EAGAIN=11 and EINTR=4 are the expected retryable
+  // wake or the errno value (`EAGAIN=11` and `EINTR=4` are the expected retryable
   // cases).
   internal borrowing func _futexWait(expected: _MutexHandle.State) -> UInt32 {
     unsafe _swift_stdlib_futex_wait(.init(_rawAddress), expected.rawValue)
@@ -80,16 +129,16 @@ public struct _MutexHandle: ~Copyable {
 }
 
 // Spin-phase iteration budget.
-private let spinTries: Int = 20
+private var spinTries: UInt32 { 20 }
 
 // CPU pauses per spin iteration, before jitter. Must be a power of two (masked to generate the jitter via
 // `jitter & (pauseBase - 1)`).
-private let pauseBase: UInt32 = 64
+private var pauseBase: UInt32 { 64 }
 
 // Once this many threads are already waiting for the lock, new arrivals skip the spin loop and go to sleep
 // immediately. Keeps the set of actively-spinning threads bounded so the lock holder's critical section runs
 // without cache-line interference from the spinners.
-private let maxActiveSpinners: UInt32 = 4
+private var maxActiveSpinners: UInt32 { 4 }
 
 @available(SwiftStdlib 6.0, *)
 extension _MutexHandle {
@@ -109,7 +158,7 @@ extension _MutexHandle {
       return
     }
 
-    _lockSlow(0)
+    _lockSlow()
   }
 
   // Slow path for `_lock`:
@@ -117,16 +166,14 @@ extension _MutexHandle {
   //     pool small so the owner's critical section runs uncontested.
   //   - Spin: bounded pause-based spin with per-thread jitter. Stops early if the lock is observed contended, so we
   //     don't steal it from a thread the kernel is about to wake.
-  //   - Kernel: loop try-acquire plus FUTEX_WAIT until acquired. A thread that has to park bumps `slowPathDepth` on
+  //   - Kernel: loop try-acquire plus `FUTEX_WAIT` until acquired. A thread that has to park bumps `slowPathDepth` on
   //     its first failed try-acquire and drops it on successful acquire. This feeds the depth gate: once enough
   //     threads are parked, new arrivals skip spinning and park directly, which stops spinners from stealing the
   //     lock out from under parked threads and bounds tail latency. Threads that win the initial try-acquire never
   //     touch the counter.
-  //
-  // `selfId` is retained only to preserve the mangled ABI symbol from the prior PI-futex implementation.
   @available(SwiftStdlib 6.0, *)
   @usableFromInline
-  internal borrowing func _lockSlow(_ selfId: UInt32) {
+  internal borrowing func _lockSlow() {
     // Before relinquishing control to the kernel to block this particular
     // thread, run a little spin lock to keep this thread busy in the scenario
     // where the current owner thread's critical section is somewhat quick. We
@@ -135,8 +182,8 @@ extension _MutexHandle {
     // releasing and acquiring (assuming no existing waiters).
 
     // Skip the spin when the queue is already deep - extra spinners just slow down the parked threads' handoff.
-    let initialState = storage.load(ordering: .acquiring)
-    let depth = slowPathDepth.load(ordering: .acquiring)
+    let initialState = storage.load(ordering: .relaxed)
+    let depth = slowPathDepth.load(ordering: .relaxed)
     let skipSpin = (initialState == .contended) && (depth >= maxActiveSpinners)
 
     if !skipSpin {
@@ -154,16 +201,22 @@ extension _MutexHandle {
         // actually change in the value potentially. An extra memory barrier
         // would make it even slower on top of the fact that we may not even be
         // able to attempt to acquire the lock.
-        let state = storage.load(ordering: .relaxed)
+        var state = storage.load(ordering: .relaxed)
 
-        if state == .unlocked, storage.compareExchange(
-          expected: .unlocked,
-          desired: .locked,
-          successOrdering: .acquiring,
-          failureOrdering: .relaxed
-        ).exchanged {
-          // Locked!
-          return
+        if state == .unlocked {
+          let (exchanged, original) = storage.compareExchange(
+            expected: .unlocked,
+            desired: .locked,
+            successOrdering: .acquiring,
+            failureOrdering: .relaxed
+          )
+          if exchanged {
+            // Locked!
+            return
+          }
+          // CAS failed: another thread beat us to `.locked`, or a thread in the kernel phase wrote `.contended`.
+          // Refresh state with what we actually observed so the check below sees it.
+          state = original
         }
 
         // Don't steal the lock from a thread the kernel is about to wake.
@@ -181,10 +234,17 @@ extension _MutexHandle {
       } while spinsRemaining > 0
     }
 
-    // We've exhausted our spins. Ask the kernel to block for us until the owner releases the lock.
+    // We've exhausted our spins (or the depth gate told us to skip them). Ask the kernel to block for us until the
+    // owner releases the lock.
     var visibleToSpinners = false
 
     while true {
+      // Always attempt the exchange first, even when the depth gate fired. The gate's relaxed load can race ahead
+      // of an owner release; skipping this exchange turned ~1200/iter cheap first-try wins into `FUTEX_WAIT`
+      // roundtrips that returned `EAGAIN` (word had already moved off `.contended`) and then re-acquired via the
+      // next iteration's exchange anyway. Measured ~20% regression at t=32. The one RMW on the owner's cache
+      // line is cheaper than the wasted syscall.
+      //
       // `.contended`, not `.locked`: parked threads exist and must be woken by the next unlock.
       if storage.exchange(.contended, ordering: .acquiring) == .unlocked {
         if visibleToSpinners {
@@ -201,16 +261,16 @@ extension _MutexHandle {
         visibleToSpinners = true
       }
 
-      // Sleep while `*word == contended`. Returns 0 on a normal wake from FUTEX_WAKE, or an errno for retryable cases.
+      // Sleep while `*word == .contended`. Returns 0 on a normal wake from `FUTEX_WAKE`, or an errno for retryable cases.
       let waitResult = storage._futexWait(expected: .contended)
       switch waitResult {
-      // EINTR  - "A FUTEX_WAIT or FUTEX_WAIT_BITSET operation was interrupted
-      //           by a signal (see signal(7)). Before Linux 2.6.22, this error
-      //           could also be returned for a spurious wakeup; since Linux
-      //           2.6.22, this no longer happens."
-      // EAGAIN - "The expected value specified by val did not match the value
-      //           in the futex word"; another thread unlocked in the window
-      //           between our `exchange(.contended)` and the syscall.
+      // `EINTR`  - "A `FUTEX_WAIT` or `FUTEX_WAIT_BITSET` operation was interrupted
+      //             by a signal (see signal(7)). Before Linux 2.6.22, this error
+      //             could also be returned for a spurious wakeup; since Linux
+      //             2.6.22, this no longer happens."
+      // `EAGAIN` - "The expected value specified by val did not match the value
+      //             in the futex word"; another thread unlocked in the window
+      //             between our `exchange(.contended)` and the syscall.
       case 0, 11, 4:
         continue
 
@@ -226,37 +286,25 @@ extension _MutexHandle {
   @_transparent
   internal borrowing func _tryLock() -> Bool {
     // Do a user space cmpxchg to see if we can easily acquire the lock.
-    if storage.compareExchange(
+    return storage.compareExchange(
       expected: .unlocked,
       desired: .locked,
       successOrdering: .acquiring,
       failureOrdering: .relaxed
-    ).exchanged {
-      // Locked!
-      return true
-    }
-
-    return _tryLockSlow()
-  }
-
-  @available(SwiftStdlib 6.0, *)
-  @usableFromInline
-  internal borrowing func _tryLockSlow() -> Bool {
-    // Retained only to preserve the mangled ABI symbol from the prior PI-futex implementation.
-    return false
+    ).exchanged
   }
 
   @available(SwiftStdlib 6.0, *)
   @_alwaysEmitIntoClient
   @_transparent
   internal borrowing func _unlock() {
-    // Attempt to release the lock atomically in userspace. If there are waiters we must inform the kernel via
-    // FUTEX_WAKE.
-    guard storage.exchange(.unlocked, ordering: .releasing) == .contended else {
+    // Release the lock atomically in userspace. Previous value tells us whether anyone is parked.
+    if storage.exchange(.unlocked, ordering: .releasing) == .locked {
       // No waiters, unlocked!
       return
     }
 
+    // At least one waiter parked in the kernel; wake one via `FUTEX_WAKE`.
     _unlockSlow()
   }
 

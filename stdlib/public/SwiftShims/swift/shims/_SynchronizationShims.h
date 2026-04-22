@@ -32,42 +32,6 @@ static inline __swift_uint32_t _swift_stdlib_gettid() {
   return tid;
 }
 
-// The three `_swift_stdlib_futex_lock` / `_trylock` / `_unlock` helpers below are the PI-futex shims used by the previous
-// Mutex implementation on Linux; the current plain-futex implementation in LinuxImpl.swift no longer calls them. They are
-// retained here only to minimize the diff against the prior header surface - being `static inline`, unused copies carry no
-// link-time cost. Safe to delete if a later cleanup pass wants to drop them.
-static inline __swift_uint32_t _swift_stdlib_futex_lock(__swift_uint32_t *lock) {
-  int ret = syscall(SYS_futex, lock, FUTEX_LOCK_PI_PRIVATE,
-                    /* val */ 0, // this value is ignored by this futex op
-                    /* timeout */ NULL); // block indefinitely
-
-  if (ret == 0) {
-    return ret;
-  }
-
-  return errno;
-}
-
-static inline __swift_uint32_t _swift_stdlib_futex_trylock(__swift_uint32_t *lock) {
-  int ret = syscall(SYS_futex, lock, FUTEX_TRYLOCK_PI);
-
-  if (ret == 0) {
-    return ret;
-  }
-
-  return errno;
-}
-
-static inline __swift_uint32_t _swift_stdlib_futex_unlock(__swift_uint32_t *lock) {
-  int ret = syscall(SYS_futex, lock, FUTEX_UNLOCK_PI_PRIVATE);
-
-  if (ret == 0) {
-    return ret;
-  }
-
-  return errno;
-}
-
 // Plain-futex wait: sleeps if *addr == expected. Returns 0 on success
 // (woken by FUTEX_WAKE) or the errno value (EAGAIN=11, EINTR=4 are the
 // expected retryable cases).
