@@ -15,9 +15,7 @@
 // REQUIRES: swift_feature_Lifetimes
 // REQUIRES: std_span
 
-#if !BRIDGING_HEADER
 import StdSpan
-#endif
 import CxxStdlib
 
 // CHECK:     struct DependsOnSelf {
