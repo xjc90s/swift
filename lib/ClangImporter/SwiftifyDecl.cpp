@@ -508,13 +508,6 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
   if (shouldSkipModule(MappedDecl->getParentModule()))
     return false;
 
-  {
-    UnaliasedInstantiationVisitor visitor;
-    visitor.TraverseType(ClangDecl->getType());
-    if (visitor.hasUnaliasedInstantiation)
-      return false;
-  }
-
   // FIXME: for private macro generated functions we do not serialize the
   // SILFunction's body anywhere triggering assertions.
   if (ClangDecl->getAccess() == clang::AS_protected ||
@@ -626,6 +619,8 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
       return false;
     }
 
+    UnaliasedInstantiationVisitor templateChecker;
+
     size_t selfParamIndex = MappedDecl->isImportAsInstanceMember()
                                 ? MappedDecl->getSelfIndex()
                                 : getNumParams(ClangDecl);
@@ -703,6 +698,13 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
       if (paramIsStdSpan && paramHasLifetimeInfo) {
         DLOG("Found both std::span and lifetime info\n");
         attachMacro = true;
+      } else {
+        // std::span is transformed to Swift Span, it won't show up in the
+        // signature, but all other templated types need to be hidden behind
+        // typedefs.
+        templateChecker.TraverseType(clangParamTy);
+        if (templateChecker.hasUnaliasedInstantiation)
+          return false;
       }
     }
     if (!returnHasLifetimeInfo && returnValueIsNonEscapable) {
@@ -712,6 +714,10 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
     if (returnIsStdSpan && returnHasLifetimeInfo) {
       DLOG("Found both std::span and lifetime info for return value\n");
       attachMacro = true;
+    } else {
+      templateChecker.TraverseType(clangReturnTy);
+      if (templateChecker.hasUnaliasedInstantiation)
+        return false;
     }
   }
   return attachMacro;

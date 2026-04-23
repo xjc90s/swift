@@ -58,6 +58,13 @@ import CxxStdlib
 // CHECK-NEXT:   mutating func foo(_ s: std.{{.*}}span<__cxxConst<CInt>, _C{{.*}}_{{.*}}>)
 // CHECK-NEXT:   mutating func otherTemplatedType(_ copy: ConstSpanOfInt, _: S<CInt>)
 // CHECK-NEXT:   mutating func otherTemplatedType2(_ copy: ConstSpanOfInt, _: UnsafeMutablePointer<S<CInt>>!)
+// CHECK-LEGACY-DAG:   /// This is an auto-generated wrapper for safer interop
+// CHECK-LEGACY-DAG:   @available(visionOS 1.0, tvOS 12.2, watchOS 5.2, iOS 12.2, macOS 10.14.4, *)
+// CHECK-LEGACY-DAG:   @_lifetime(&self)
+// CHECK-LEGACY-DAG:   @_alwaysEmitIntoClient @_disfavoredOverload public mutating func bar() -> Span<CInt>
+// CHECK-DAG:   /// This is an auto-generated wrapper for safer interop
+// CHECK-DAG:   @available(visionOS 1.0, tvOS 12.2, watchOS 5.2, iOS 12.2, macOS 10.14.4, *)
+// CHECK-DAG:   @_alwaysEmitIntoClient @_disfavoredOverload public mutating func foo(_ s: Span<CInt>)
 // CHECK-NEXT: }
 
 // CHECK: class DependsOnSelfFRT {
@@ -167,13 +174,22 @@ import CxxStdlib
 // CHECK-NEXT: @_lifetime(copy: copy copy)
 // CHECK-NEXT: @_alwaysEmitIntoClient @_disfavoredOverload public func mutableKeyword(_ copy: inout MutableSpan<CInt>)
 
+// CHECK-NEXT: /// This is an auto-generated wrapper for safer interop
+// CHECK-NEXT: @available(visionOS 1.0, tvOS 12.2, watchOS 5.2, iOS 12.2, macOS 10.14.4, *)
+// CHECK-NEXT: @_lifetime(s: copy s)
+// CHECK-NEXT: @_alwaysEmitIntoClient @_disfavoredOverload public func mutableSpanWithoutTypeAlias(_ s: inout MutableSpan<CInt>)
+
+// CHECK-NEXT: /// This is an auto-generated wrapper for safer interop
+// CHECK-NEXT: @available(visionOS 1.0, tvOS 12.2, watchOS 5.2, iOS 12.2, macOS 10.14.4, *)
+// CHECK-NEXT: @_alwaysEmitIntoClient @_disfavoredOverload public func spanWithoutTypeAlias(_ s: Span<CInt>)
+
 func callMethodWithSafeWrapper(_ x: inout X, s: Span<CInt>) {
     x.methodWithSafeWrapper(s)
     let _ = x.getMutable(s) // expected-default-error {{cannot convert value of type 'Span<CInt>' (aka 'Span<Int32>') to expected argument type 'ConstSpanOfInt'}}
 }
 
 func callFooBar(_ x: inout SpanWithoutTypeAlias, _ s: ConstSpanOfInt) {
-    let _: Span<CInt> = x.bar() // expected-error {{cannot convert value of type}}
+    let _: Span<CInt> = x.bar() // expected-default-error{{cannot convert value of type}}
     unsafe x.foo(s)
 }
 
@@ -279,9 +295,9 @@ func callMutableKeyword(_ span: inout MutableSpan<CInt>) {
 }
 
 func callSpanWithoutTypeAlias(_ span: Span<CInt>) {
-  spanWithoutTypeAlias(span) // expected-error {{cannot convert value of type}}
+  spanWithoutTypeAlias(span)
 }
 
 func callMutableSpanWithoutTypeAlias(_ span: consuming MutableSpan<CInt>) {
-  mutableSpanWithoutTypeAlias(&span) // expected-error {{cannot convert value of type}}
+  mutableSpanWithoutTypeAlias(&span)
 }
