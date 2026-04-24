@@ -368,7 +368,7 @@ extension OutputSpan {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension OutputSpan {
-  /// Append to the span as raw bytes.
+  /// Appends to the span as raw bytes.
   ///
   /// Inside the closure, initialize elements by appending to `rawSpan`.
   /// If the available memory in `self` is less than `n`, this
@@ -380,15 +380,15 @@ extension OutputSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - n: The number of `T` elements to initialize
+  ///   - n: The number of elements (of type `Element`) to initialize.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
   ///       - rawSpan: An `OutputRawSpan` with enough bytes to initialize
   ///         the specified number of additional elements.
   @_alwaysEmitIntoClient
   @_lifetime(self: copy self)
-  mutating func append<E: Error>(
-    elements n: Int,
+  public mutating func append<E: Error>(
+    elementCount n: Int,
     initializingWith initializer:
       (_ rawSpan: inout OutputRawSpan) throws(E) -> Void
   ) throws(E) where Element: ConvertibleFromBytes {
