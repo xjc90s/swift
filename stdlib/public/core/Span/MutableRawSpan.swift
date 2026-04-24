@@ -495,6 +495,7 @@ extension MutableRawSpan {
   ///   - byteOrder: The order in which the bytes should be decoded.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   func load<T: ConvertibleFromBytes & FixedWidthInteger>(
     fromByteOffset offset: Int = 0,
     as: T.Type = T.self,
@@ -559,6 +560,7 @@ extension MutableRawSpan {
   ///   - type: The type of the instance to store.
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   public mutating func storeBytes<
     T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger
   >(
@@ -608,6 +610,7 @@ extension MutableRawSpan {
   ///   - type: The type of the instance to store.
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   public mutating func storeBytes<
     T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger
   >(

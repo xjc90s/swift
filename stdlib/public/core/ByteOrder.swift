@@ -12,23 +12,24 @@
 
 /// A byte ordering in memory.
 @frozen
+@available(SwiftStdlib 6.4, *)
 public enum ByteOrder: Equatable, Hashable, Sendable {
   /// Bytes are ordered with the most significant bits
-  /// starting at the lowest memory address
+  /// starting at the lowest memory address.
   case bigEndian
 
   /// Bytes are ordered with the least significant bits
-  /// starting at the lowest memory address
+  /// starting at the lowest memory address.
   case littleEndian
 
   /// The native byte ordering for the runtime target.
-  static var native: Self {
+  public static var native: Self {
 #if _endian(big)
     .bigEndian
 #elseif _endian(little)
     .littleEndian
 #else
-    #error("endianness is undefined")
+    #error("byte ordering is undefined")
 #endif
   }
 }

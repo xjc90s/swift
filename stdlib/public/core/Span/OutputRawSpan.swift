@@ -275,6 +275,7 @@ extension OutputRawSpan {
   ///   - type: The type of the instance to create.
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   @lifetime(self: copy self)
   public mutating func append<T>(
     _ value: T, as type: T.Type, byteOrder: ByteOrder
@@ -352,6 +353,7 @@ extension OutputRawSpan {
   ///   - count: The number of copies of `value` to append to this span.
   ///   - type: The type of the instance to create.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   @lifetime(self: copy self)
   public mutating func append<T>(
     repeating repeatedValue: T,

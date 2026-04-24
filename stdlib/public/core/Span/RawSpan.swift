@@ -786,6 +786,7 @@ extension RawSpan {
   ///   - byteOrder: The order in which the bytes should be decoded.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
+  @available(SwiftStdlib 6.4, *)
   func load<T: ConvertibleFromBytes & FixedWidthInteger>(
     fromByteOffset offset: Int = 0,
     as: T.Type = T.self,
