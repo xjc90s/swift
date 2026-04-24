@@ -239,13 +239,10 @@ extension _MutexHandle {
     var visibleToSpinners = false
 
     while true {
-      // Always attempt the exchange first, even when the depth gate fired. The gate's relaxed load can race ahead
-      // of an owner release; skipping this exchange turned ~1200/iter cheap first-try wins into `FUTEX_WAIT`
-      // roundtrips that returned `EAGAIN` (word had already moved off `.contended`) and then re-acquired via the
-      // next iteration's exchange anyway. Measured ~20% regression at t=32. The one RMW on the owner's cache
-      // line is cheaper than the wasted syscall.
-      //
       // `.contended`, not `.locked`: parked threads exist and must be woken by the next unlock.
+      // Runs unconditionally, even on the skipSpin path: this exchange sometimes grabs the lock
+      // (when the unlocker released during the gate->kernel transit), cheaper than forcing every
+      // gated thread through a `futex_wait` + wake round-trip.
       if storage.exchange(.contended, ordering: .acquiring) == .unlocked {
         if visibleToSpinners {
           _ = slowPathDepth.wrappingSubtract(1, ordering: .relaxed)
