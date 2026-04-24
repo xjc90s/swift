@@ -367,6 +367,7 @@ extension Span where Element: BitwiseCopyable {
   ///   - bytes: An existing `RawSpan`, which will define both this
   ///            `Span`'s lifetime and the memory it represents.
   @_alwaysEmitIntoClient
+  @unsafe
   @lifetime(copy bytes)
   public init(_bytes bytes: consuming RawSpan) {
     let rawBuffer = unsafe UnsafeRawBufferPointer(
@@ -375,6 +376,26 @@ extension Span where Element: BitwiseCopyable {
     let span = unsafe Span(_unsafeBytes: rawBuffer)
     // As a trivial value, 'rawBuffer' does not formally depend on the
     // lifetime of 'bytes'. Make the dependence explicit.
+    self = unsafe _overrideLifetime(span, copying: bytes)
+  }
+
+  /// View initialized raw memory as a typed span.
+  ///
+  /// The `byteCount` of `bytes` must be a multiple of `Element`'s stride,
+  /// and the starting address of `bytes` must be well-aligned for the type
+  /// of `Element`. If either of these requirements is not met, this initializer
+  /// will trap at runtime.
+  ///
+  /// - Parameters:
+  ///   - bytes: An existing `RawSpan`, which will define both this
+  ///            `Span`'s lifetime and the memory it represents.
+  @_alwaysEmitIntoClient
+  @lifetime(copy bytes)
+  public init(viewing bytes: RawSpan) where Element: ConvertibleFromBytes {
+    let rawBuffer = unsafe UnsafeRawBufferPointer(
+      start: bytes._pointer, count: bytes.byteCount
+    )
+    let span = unsafe Span(_unsafeBytes: rawBuffer)
     self = unsafe _overrideLifetime(span, copying: bytes)
   }
 }
@@ -507,7 +528,7 @@ extension Span where Element: BitwiseCopyable {
 
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
-extension Span where Element: BitwiseCopyable {
+extension Span where Element: Copyable {
 
   /// Construct a raw span over the memory represented by this span.
   ///
@@ -515,6 +536,24 @@ extension Span where Element: BitwiseCopyable {
   @_alwaysEmitIntoClient
   @_transparent
   @unsafe
+  public var bytes: RawSpan {
+    @lifetime(copy self)
+    get {
+      let rawSpan = unsafe RawSpan(unsafeElements: self)
+      return unsafe _overrideLifetime(rawSpan, copying: self)
+    }
+  }
+}
+
+@available(SwiftCompatibilitySpan 5.0, *)
+@_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
+extension Span where Element: ConvertibleToBytes {
+
+  /// Construct a raw span over the memory represented by this span.
+  ///
+  /// - Returns: A RawSpan over the memory represented by this span.
+  @_alwaysEmitIntoClient
+  @_transparent
   public var bytes: RawSpan {
     @lifetime(copy self)
     get {
@@ -939,6 +978,17 @@ extension Span where Element: ~Copyable {
   @lifetime(copy self)
   public func _extracting(droppingFirst k: Int) -> Self {
     extracting(droppingFirst: k)
+  }
+}
+
+@available(SwiftCompatibilitySpan 5.0, *)
+@_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
+extension Span where Element == UInt8 {
+  @_alwaysEmitIntoClient
+  @_lifetime(copy bytes)
+  public init(viewing bytes: RawSpan) {
+    let span = unsafe Self(_unchecked: bytes._pointer, count: bytes._count)
+    self = unsafe _overrideLifetime(span, copying: bytes)
   }
 }
 
