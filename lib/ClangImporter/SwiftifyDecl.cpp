@@ -82,6 +82,11 @@ ValueDecl *getKnownSingleDecl(ASTContext &SwiftContext, StringRef DeclName) {
   return decls[0];
 }
 
+static bool isStdSpanType(clang::QualType clangType) {
+  const auto *decl = clangType->getAsTagDecl();
+  return decl && decl->isInStdNamespace() && decl->getName() == "span";
+}
+
 struct SwiftifyInfoPrinter {
   static const ssize_t SELF_PARAM_INDEX = -2;
   static const ssize_t RETURN_VALUE_INDEX = -1;
@@ -201,8 +206,7 @@ struct SwiftifyInfoFunctionPrinter : public SwiftifyInfoPrinter {
   }
 
   bool registerStdSpanTypeMapping(Type swiftType, const clang::QualType clangType) {
-    const auto *decl = clangType->getAsTagDecl();
-    if (decl && decl->isInStdNamespace() && decl->getName() == "span") {
+    if (isStdSpanType(clangType)) {
       typeMapping.try_emplace(swiftType->getString(),
                               swiftType->getDesugaredType()->getString());
       return true;
@@ -552,17 +556,6 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
   // has lifetime information, since std::span already contains bounds info.
   bool attachMacro = false;
   {
-    Type swiftReturnTy;
-    if (const auto *funcDecl = dyn_cast<FuncDecl>(MappedDecl))
-      swiftReturnTy = funcDecl->getResultInterfaceType();
-    else if (const auto *ctorDecl = dyn_cast<ConstructorDecl>(MappedDecl))
-      swiftReturnTy = ctorDecl->getResultInterfaceType();
-    else
-      ABORT("Unexpected AbstractFunctionDecl subclass.");
-    clang::QualType clangReturnTy = ClangDecl->getReturnType();
-
-    if (CheckForwardDecls.IsIncompatibleImport(swiftReturnTy, clangReturnTy))
-      return false;
 
     auto isNonEscapable = [&Self](clang::QualType ty) {
       // We only care whether it's _known_ ~Escapable, because it affects
@@ -573,18 +566,13 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
              CxxEscapability::NonEscapable;
     };
 
-    bool returnIsStdSpan = printer.registerStdSpanTypeMapping(
-        swiftReturnTy, clangReturnTy);
-    bool returnHasBoundsInfo = returnIsStdSpan;
-    auto *CAT = clangReturnTy->getAs<clang::CountAttributedType>();
-    if (SwiftifiableCAT(clangASTContext, CAT, swiftReturnTy)) {
-      printer.printCountedBy(CAT, SwiftifyInfoPrinter::RETURN_VALUE_INDEX);
-      DLOG("Found bounds info '" << clang::QualType(CAT, 0) << "' on return value\n");
-      returnHasBoundsInfo = attachMacro = true;
-    }
     auto dependsOnClass = [](const ParamDecl *fromParam) {
       return fromParam->getInterfaceType()->isAnyClassReferenceType();
     };
+    clang::QualType clangReturnTy = ClangDecl->getReturnType();
+    bool returnIsStdSpan = isStdSpanType(clangReturnTy);
+    auto *CAT = clangReturnTy->getAs<clang::CountAttributedType>();
+    bool returnHasBoundsInfo = returnIsStdSpan || CAT != nullptr;
     bool returnValueIsNonEscapable = isNonEscapable(clangReturnTy);
     bool returnValueCanBeNonEscapable = returnValueIsNonEscapable || returnHasBoundsInfo;
     bool returnHasLifetimeInfo = false;
@@ -728,6 +716,29 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
     }
     if (returnIsStdSpan && returnHasLifetimeInfo) {
       DLOG("Found both std::span and lifetime info for return value\n");
+      attachMacro = true;
+    }
+
+    if (!attachMacro && CAT == nullptr)
+      // The return type is not imported eagerly (unlike parameter types). Exit
+      // early to avoid unnecessarily importing types we might not need.
+      return false;
+
+    Type swiftReturnTy;
+    if (const auto *funcDecl = dyn_cast<FuncDecl>(MappedDecl))
+      swiftReturnTy = funcDecl->getResultInterfaceType();
+    else if (const auto *ctorDecl = dyn_cast<ConstructorDecl>(MappedDecl))
+      swiftReturnTy = ctorDecl->getResultInterfaceType();
+    else
+      ABORT("Unexpected AbstractFunctionDecl subclass.");
+
+    if (CheckForwardDecls.IsIncompatibleImport(swiftReturnTy, clangReturnTy))
+      return false;
+    (void)printer.registerStdSpanTypeMapping(
+        swiftReturnTy, clangReturnTy);
+    if (SwiftifiableCAT(clangASTContext, CAT, swiftReturnTy)) {
+      printer.printCountedBy(CAT, SwiftifyInfoPrinter::RETURN_VALUE_INDEX);
+      DLOG("Found bounds info '" << clang::QualType(CAT, 0) << "' on return value\n");
       attachMacro = true;
     }
   }
