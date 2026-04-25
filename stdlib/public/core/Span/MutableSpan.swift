@@ -937,8 +937,15 @@ extension MutableSpan where Element: ~Copyable {
   @_alwaysEmitIntoClient
   @lifetime(&self)
   mutating public func _mutatingExtracting(_: UnboundedRange) -> Self {
-    let newSpan = unsafe Self(_unchecked: _pointer, count: _count)
-    return unsafe _overrideLifetime(newSpan, mutating: &self)
+    unsafe _overrideLifetime(
+      Self(_unchecked: _pointer, count: _count), mutating: &self
+    )
+  }
+
+  @_alwaysEmitIntoClient @inline(__always)
+  internal var _reborrowed: Self {
+    @lifetime(&self)
+    mutating get { _mutatingExtracting(...) }
   }
 
   /// Constructs a new span over all the items of this span.
