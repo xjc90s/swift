@@ -510,12 +510,21 @@ extension MutableRawSpan {
   public mutating func storeBytes<T: BitwiseCopyable>(
     of value: T, toByteOffset offset: Int = 0, as type: T.Type
   ) {
+    unsafe _storeBytes(of: value, toByteOffset: offset, as: T.self)
+  }
+
+  @unsafe
+  @_alwaysEmitIntoClient @_transparent
+  @lifetime(self: copy self)
+  internal mutating func _storeBytes<T: BitwiseCopyable>(
+    of value: T, toByteOffset offset: Int, as type: T.Type
+  ) {
     _precondition(
       UInt(bitPattern: offset) <= UInt(bitPattern: _count) &&
       MemoryLayout<T>.size <= (_count &- offset),
       "Byte offset range out of bounds"
     )
-    unsafe storeBytes(of: value, toUncheckedByteOffset: offset, as: type)
+    unsafe storeBytes(of: value, toUncheckedByteOffset: offset, as: T.self)
   }
 
   /// Stores the given value's bytes into the span's raw memory at the
@@ -534,7 +543,26 @@ extension MutableRawSpan {
   public mutating func storeBytes<T: BitwiseCopyable>(
     of value: T, toUncheckedByteOffset offset: Int, as type: T.Type
   ) {
-    unsafe _start().storeBytes(of: value, toByteOffset: offset, as: type)
+    unsafe _start().storeBytes(of: value, toByteOffset: offset, as: T.self)
+  }
+
+  /// Stores the given value's bytes to the specified offset into
+  /// the span's memory.
+  ///
+  /// The range of bytes required to store a value of type `T` starting at
+  /// byte offset `offset` must be completely within the span.
+  ///
+  /// - Parameters:
+  ///   - value: The value to store as raw bytes.
+  ///   - offset: The offset in bytes into the span's memory at which to begin
+  ///       writing the bytes from the value.
+  ///   - type: The type of the instance to store.
+  @_alwaysEmitIntoClient
+  @lifetime(self: copy self)
+  public mutating func storeBytes<T: ConvertibleToBytes & BitwiseCopyable>(
+    of value: T, toByteOffset offset: Int, as type: T.Type
+  ) {
+    unsafe _storeBytes(of: value, toByteOffset: offset, as: T.self)
   }
 
   /// Stores the given value's bytes to the specified offset into
@@ -561,9 +589,9 @@ extension MutableRawSpan {
   ) {
     switch byteOrder {
     case .bigEndian:
-      unsafe storeBytes(of: value.bigEndian, toByteOffset: offset, as: T.self)
+      storeBytes(of: value.bigEndian, toByteOffset: offset, as: T.self)
     case .littleEndian:
-      unsafe storeBytes(of: value.littleEndian, toByteOffset: offset, as: T.self)
+      storeBytes(of: value.littleEndian, toByteOffset: offset, as: T.self)
     }
   }
 
@@ -582,6 +610,14 @@ extension MutableRawSpan {
   public mutating func storeBytes<T: BitwiseCopyable>(
     repeating repeatedValue: T, count: Int, as type: T.Type
   ) {
+    unsafe _storeBytes(repeating: repeatedValue, count: count, as: T.self)
+  }
+
+  @unsafe
+  @_alwaysEmitIntoClient @_transparent
+  internal mutating func _storeBytes<T: BitwiseCopyable>(
+    repeating repeatedValue: T, count: Int, as type: T.Type
+  ) {
     _precondition(
       count*MemoryLayout<T>.stride <= _count,
       "Span cannot contain every element"
@@ -589,6 +625,23 @@ extension MutableRawSpan {
     unsafe _start().withMemoryRebound(to: T.self, capacity: count) {
       unsafe $0.update(repeating: repeatedValue, count: count)
     }
+  }
+
+  /// Stores the given value's bytes repeatedly into this span's memory.
+  ///
+  /// There must be at least `count * MemoryLayout<T>.stride` bytes
+  /// available in the span.
+  ///
+  /// - Parameters:
+  ///   - repeatedValue: The value to store as raw bytes.
+  ///   - count: The number of copies of `repeatedValue` to store
+  ///      into this span.
+  ///   - type: The type of the instance to store repeatedly.
+  @_alwaysEmitIntoClient
+  public mutating func storeBytes<T: ConvertibleToBytes & BitwiseCopyable>(
+    repeating repeatedValue: T, count: Int, as type: T.Type
+  ) {
+    unsafe _storeBytes(repeating: repeatedValue, count: count, as: T.self)
   }
 
   /// Stores the given value's bytes repeatedly into this span's memory.
@@ -616,7 +669,7 @@ extension MutableRawSpan {
     case .bigEndian: repeatedValue.bigEndian
     case .littleEndian: repeatedValue.littleEndian
     }
-    unsafe storeBytes(repeating: value, count: count, as: T.self)
+    storeBytes(repeating: value, count: count, as: T.self)
   }
 }
 
