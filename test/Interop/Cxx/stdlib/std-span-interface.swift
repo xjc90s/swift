@@ -54,6 +54,10 @@ import CxxStdlib
 // CHECK-NEXT:   init()
 // CHECK-NEXT:   mutating func bar() -> std.{{.*}}span<__cxxConst<CInt>, _C{{.*}}_{{.*}}>
 // CHECK-NEXT:   mutating func foo(_ s: std.{{.*}}span<__cxxConst<CInt>, _C{{.*}}_{{.*}}>)
+// CHECK-NEXT:   mutating func nestedTemplateInstantiationReturn() -> std.{{.*}}span<S<CInt>, _C{{.*}}_{{.*}}>
+// CHECK-NEXT:   mutating func nestedTemplateInstantiationParam(_ s: std.{{.*}}span<S<CInt>, _C{{.*}}_{{.*}}>)
+// CHECK-NEXT:   mutating func nestedTemplateInstantiationReturnCounted(_ len: Int32) -> UnsafeMutablePointer<S<CInt>>!
+// CHECK-NEXT:   mutating func nestedTemplateInstantiationParamCounted(_ p: UnsafeMutablePointer<S<CInt>>!, _ len: Int32)
 // CHECK-NEXT:   mutating func otherTemplatedType(_ copy: ConstSpanOfInt, _: S<CInt>)
 // CHECK-NEXT:   mutating func otherTemplatedType2(_ copy: ConstSpanOfInt, _: UnsafeMutablePointer<S<CInt>>!)
 // CHECK-LEGACY-DAG:   /// This is an auto-generated wrapper for safer interop

@@ -345,6 +345,21 @@ struct UnaliasedInstantiationVisitor
     DLOG("Signature contains raw template, skipping\n");
     return false;
   }
+
+  static bool checkTemplates(clang::QualType clangType, bool hasLifetime,
+                             bool isStdSpan) {
+    if (hasLifetime && isStdSpan) {
+      // std::span is transformed to Swift Span, so the std::span template
+      // instantiation won't show up in the macro expansion's signature. The
+      // element type still needs to be checked.
+      const auto *TST = clangType->getAs<clang::TemplateSpecializationType>();
+      ASSERT(TST && "std::span is not specialized?");
+      clangType = TST->template_arguments()[0].getAsType();
+    }
+    UnaliasedInstantiationVisitor checker;
+    checker.TraverseType(clangType);
+    return checker.hasUnaliasedInstantiation;
+  }
 };
 
 static const clang::Decl *getTemplateInstantiation(const clang::Decl *D) {
@@ -619,8 +634,6 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
       return false;
     }
 
-    UnaliasedInstantiationVisitor templateChecker;
-
     size_t selfParamIndex = MappedDecl->isImportAsInstanceMember()
                                 ? MappedDecl->getSelfIndex()
                                 : getNumParams(ClangDecl);
@@ -695,29 +708,27 @@ static bool swiftifyImpl(ClangImporter::Implementation &Self,
           return false;
         }
       }
+      if (UnaliasedInstantiationVisitor::checkTemplates(
+              clangParamTy, paramHasLifetimeInfo, paramIsStdSpan)) {
+        return false;
+      }
       if (paramIsStdSpan && paramHasLifetimeInfo) {
         DLOG("Found both std::span and lifetime info\n");
         attachMacro = true;
-      } else {
-        // std::span is transformed to Swift Span, it won't show up in the
-        // signature, but all other templated types need to be hidden behind
-        // typedefs.
-        templateChecker.TraverseType(clangParamTy);
-        if (templateChecker.hasUnaliasedInstantiation)
-          return false;
       }
     }
     if (!returnHasLifetimeInfo && returnValueIsNonEscapable) {
       DLOG("~Escapable return value without lifetime info\n");
       return false;
     }
+
+    if (UnaliasedInstantiationVisitor::checkTemplates(
+            clangReturnTy, returnHasLifetimeInfo, returnIsStdSpan)) {
+      return false;
+    }
     if (returnIsStdSpan && returnHasLifetimeInfo) {
       DLOG("Found both std::span and lifetime info for return value\n");
       attachMacro = true;
-    } else {
-      templateChecker.TraverseType(clangReturnTy);
-      if (templateChecker.hasUnaliasedInstantiation)
-        return false;
     }
   }
   return attachMacro;
