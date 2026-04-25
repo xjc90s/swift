@@ -329,10 +329,9 @@ extension RawSpan {
   ///
   /// Creates a `RawSpan` over the memory represented by a `Span<Element>`
   ///
-  ///
   /// - Parameters:
-  ///   - span: An existing `Span<Element>`, from which this `RawSpan` will
-  ///     inherit its lifetime.
+  ///   - unsafeElements: An existing `Span<Element>`, from which this
+  ///     `RawSpan` will inherit its lifetime.
   @_alwaysEmitIntoClient
   @unsafe
   @lifetime(copy span)
@@ -350,11 +349,11 @@ extension RawSpan {
   /// Creates a `RawSpan` over the memory represented by a `Span<Element>`.
   ///
   /// - Parameters:
-  ///   - elements: An existing `Span<ELement>`, from which this `RawSpan` will
+  ///   - elements: An existing `Span<Element>`, from which this `RawSpan` will
   ///     inherit its lifetime.
   @_alwaysEmitIntoClient
   @_lifetime(copy span)
-  init<Element: ConvertibleToBytes>(elements span: Span<Element>) {
+  public init<Element: ConvertibleToBytes>(elements span: Span<Element>) {
     unsafe self = Self.init(unsafeElements: span)
   }
 }
@@ -404,9 +403,9 @@ extension RawSpan {
   /// Accesses the byte at the specified offset in the span.
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
-  ///     must be greater or equal to zero, and less than `byteCount`.
+  ///     must be greater than or equal to zero, and less than `byteCount`.
   @_alwaysEmitIntoClient @inline(__always)
-  subscript(_ byteOffset: Int) -> UInt8 {
+  public subscript(_ byteOffset: Int) -> UInt8 {
     _checkIndex(byteOffset)
     return unsafe self[unchecked: byteOffset]
   }
@@ -417,10 +416,10 @@ extension RawSpan {
   /// with an invalid `byteOffset` results in undefined behaviour.
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
-  ///     must be greater or equal to zero, and less than `count`.
+  ///     must be greater than or equal to zero, and less than `byteCount`.
   @_alwaysEmitIntoClient @inline(__always)
   @unsafe
-  subscript(unchecked byteOffset: Int) -> UInt8 {
+  public subscript(unchecked byteOffset: Int) -> UInt8 {
     unsafe unsafeLoad(fromUncheckedByteOffset: byteOffset, as: UInt8.self)
   }
 }
@@ -762,13 +761,13 @@ extension RawSpan {
   ///
   /// - Parameters:
   ///   - offset: The offset from the beginning of this span, in bytes.
-  ///     `offset` must be nonnegative. The default is zero.
+  ///     `offset` must be nonnegative.
   ///   - type: The type of the instance to create.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
-  func load<T: ConvertibleFromBytes>(
-    fromByteOffset offset: Int = 0,
-    as: T.Type = T.self
+  public func load<T: ConvertibleFromBytes>(
+    fromByteOffset offset: Int,
+    as: T.Type
   ) -> T {
     unsafe unsafeLoadUnaligned(fromByteOffset: offset, as: T.self)
   }
@@ -781,15 +780,15 @@ extension RawSpan {
   ///
   /// - Parameters:
   ///   - offset: The offset from the beginning of this span, in bytes.
-  ///     `offset` must be nonnegative. The default is zero.
+  ///     `offset` must be nonnegative.
   ///   - type: The type of the instance to create.
-  ///   - byteOrder: The order in which the bytes should be decoded.
+  ///   - byteOrder: The order in which the bytes will be decoded.
   /// - Returns: A new value of type `T`, read from `offset`.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
-  func load<T: ConvertibleFromBytes & FixedWidthInteger>(
-    fromByteOffset offset: Int = 0,
-    as: T.Type = T.self,
+  public func load<T: ConvertibleFromBytes & FixedWidthInteger>(
+    fromByteOffset offset: Int,
+    as: T.Type,
     _ byteOrder: ByteOrder
   ) -> T {
     let rawValue = load(fromByteOffset: offset, as: T.self)
@@ -992,16 +991,12 @@ extension RawSpan {
 }
 
 extension RawSpan {
-  @available(SwiftStdlib 6.4, *)
-  @_transparent
-  public var _span: Span<UInt8> {
+  @available(*, deprecated)
+  @usableFromInline
+  var _span: Span<UInt8> {
     @lifetime(copy self)
     get {
-      let buf = unsafe UnsafeBufferPointer(
-        start: _pointer?.assumingMemoryBound(to: UInt8.self), 
-        count: _count)
-      let span = unsafe Span(_unsafeElements: buf)
-      return unsafe _overrideLifetime(span, copying: self)
+      Span(viewing: self)
     }
   }
 }
@@ -1013,7 +1008,7 @@ extension RawSpan: BorrowingSequence {
   @inlinable
   @lifetime(borrow self)
   public func makeBorrowingIterator() -> SpanIterator<UInt8> {
-    SpanIterator(self._span)
+    SpanIterator(Span(viewing: self))
   }
 }
 #endif
