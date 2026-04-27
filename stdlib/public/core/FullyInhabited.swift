@@ -56,11 +56,11 @@ public typealias FullyInhabited = ConvertibleToBytes & ConvertibleFromBytes
 ///   pointer's address in memory, or vice versa. Use the `init(bitPattern:)`
 ///   initializer for the destination type.
 ///
-/// Parameters:
+/// - Parameters:
 ///   - x: The instance to cast to `type`.
 ///   - type: The type to cast `x` to. `type` and the type of `x` must have the
 ///     same size of memory representation and compatible memory layout.
-/// Returns: A new instance of type `U`, cast from `x`.
+/// - Returns: A new instance of type `U`, cast from `x`.
 @_alwaysEmitIntoClient
 @_transparent
 public func bitCast<T, U>(

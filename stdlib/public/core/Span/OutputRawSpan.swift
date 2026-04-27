@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2025 Apple Inc. and the Swift project authors
+// Copyright (c) 2025 - 2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -238,13 +238,12 @@ extension OutputRawSpan {
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
   ///     must be greater than or equal to zero, and less than `byteCount`.
+  @_alwaysEmitIntoClient @inline(__always)
   public subscript(_ byteOffset: Int) -> UInt8 {
-    @_alwaysEmitIntoClient
     get {
       _checkIndex(byteOffset)
       return unsafe self[unchecked: byteOffset]
     }
-    @_alwaysEmitIntoClient
     set {
       _checkIndex(byteOffset)
       unsafe self[unchecked: byteOffset] = newValue
@@ -258,13 +257,12 @@ extension OutputRawSpan {
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
   ///     must be greater than or equal to zero, and less than `byteCount`.
+  @_alwaysEmitIntoClient @inline(__always)
   @unsafe
   public subscript(unchecked byteOffset: Int) -> UInt8 {
-    @_alwaysEmitIntoClient
     get {
       unsafe _start().load(fromByteOffset: byteOffset, as: UInt8.self)
     }
-    @_alwaysEmitIntoClient
     set {
       unsafe _start().storeBytes(
         of: newValue, toByteOffset: byteOffset, as: UInt8.self
@@ -273,7 +271,7 @@ extension OutputRawSpan {
   }
 }
 
-//MARK: generic single-element append functions
+// MARK: generic single-element append functions
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension OutputRawSpan {
@@ -293,7 +291,7 @@ extension OutputRawSpan {
   @_alwaysEmitIntoClient
   @_transparent
   @unsafe
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   internal mutating func _append<T>(
     _ value: T, as type: T.Type
   ) where T: BitwiseCopyable {
@@ -313,7 +311,7 @@ extension OutputRawSpan {
   ///   - value: The value to store as raw bytes.
   ///   - type: The type of the instance to store.
   @_alwaysEmitIntoClient
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   public mutating func append<T>(
     _ value: T, as type: T.Type
   ) where T: ConvertibleToBytes & BitwiseCopyable {
@@ -331,7 +329,7 @@ extension OutputRawSpan {
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   public mutating func append<T>(
     _ value: T, as type: T.Type, _ byteOrder: ByteOrder
   ) where T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger {
@@ -343,7 +341,7 @@ extension OutputRawSpan {
   }
 }
 
-//MARK: bulk-append functions
+// MARK: bulk-append functions
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension OutputRawSpan {
@@ -367,8 +365,8 @@ extension OutputRawSpan {
 
   @_alwaysEmitIntoClient
   @unsafe
-  @lifetime(self: copy self)
-  mutating func _append<T: BitwiseCopyable>(
+  @_lifetime(self: copy self)
+  internal mutating func _append<T: BitwiseCopyable>(
     repeating repeatedValue: T, count: Int, as type: T.Type
   ) {
     let total = count * MemoryLayout<T>.stride
@@ -390,7 +388,7 @@ extension OutputRawSpan {
   ///       to this span.
   ///   - type: The type of the instance to store repeatedly.
   @_alwaysEmitIntoClient
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   public mutating func append<T>(
     repeating repeatedValue: T,
     count: Int,
@@ -412,7 +410,7 @@ extension OutputRawSpan {
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   public mutating func append<T>(
     repeating repeatedValue: T,
     count: Int,
@@ -432,7 +430,7 @@ extension OutputRawSpan {
 extension OutputRawSpan {
   /// Appends to the span as elements of a specific type.
   ///
-  /// There must be at least `n * MemoryLayout<T>.stride` bytes
+  /// There must be at least `elementCount * MemoryLayout<T>.stride` bytes
   /// available in the span. The address of the next uninitialized byte
   /// must be well-aligned for instances of type `type`.
   ///
@@ -444,7 +442,7 @@ extension OutputRawSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - n: The number of `T` elements to initialize.
+  ///   - elementCount: The number of `T` elements to initialize.
   ///   - type: The type of the elements to store.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
@@ -452,7 +450,7 @@ extension OutputRawSpan {
   ///         the specified number of additional elements.
   @_alwaysEmitIntoClient
   @_lifetime(self: copy self)
-  mutating func append<T, E: Error>(
+  public mutating func append<T, E: Error>(
     elementCount n: Int,
     as type: T.Type,
     initializingWith initializer:

@@ -334,7 +334,7 @@ extension RawSpan {
   ///     `RawSpan` will inherit its lifetime.
   @_alwaysEmitIntoClient
   @unsafe
-  @lifetime(copy span)
+  @_lifetime(copy span)
   public init<Element>(unsafeElements span: Span<Element>) {
     let rawSpan = unsafe RawSpan(
       _unchecked: unsafe span._pointer,

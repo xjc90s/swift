@@ -23,6 +23,7 @@ public enum ByteOrder: Equatable, Hashable, Sendable {
   case littleEndian
 
   /// The native byte ordering for the runtime target.
+  @_alwaysEmitIntoClient
   public static var native: Self {
 #if _endian(big)
     .bigEndian

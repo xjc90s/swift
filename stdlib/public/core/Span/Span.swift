@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2024 - 2025 Apple Inc. and the Swift project authors
+// Copyright (c) 2024 - 2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -390,7 +390,7 @@ extension Span where Element: BitwiseCopyable {
   ///   - bytes: An existing `RawSpan`, which will define both this
   ///            `Span`'s lifetime and the memory it represents.
   @_alwaysEmitIntoClient
-  @lifetime(copy bytes)
+  @_lifetime(copy bytes)
   public init(viewing bytes: RawSpan) where Element: ConvertibleFromBytes {
     let rawBuffer = unsafe UnsafeRawBufferPointer(
       start: bytes._pointer, count: bytes.byteCount
@@ -537,7 +537,7 @@ extension Span where Element: Copyable {
   @_transparent
   @unsafe
   public var bytes: RawSpan {
-    @lifetime(copy self)
+    @_lifetime(copy self)
     get {
       let rawSpan = unsafe RawSpan(unsafeElements: self)
       return unsafe _overrideLifetime(rawSpan, copying: self)
@@ -555,7 +555,7 @@ extension Span where Element: ConvertibleToBytes {
   @_alwaysEmitIntoClient
   @_transparent
   public var bytes: RawSpan {
-    @lifetime(copy self)
+    @_lifetime(copy self)
     get {
       let rawSpan = unsafe RawSpan(unsafeElements: self)
       return unsafe _overrideLifetime(rawSpan, copying: self)
@@ -984,6 +984,11 @@ extension Span where Element: ~Copyable {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension Span where Element == UInt8 {
+  /// View initialized raw memory as a span of bytes.
+  ///
+  /// - Parameters:
+  ///   - bytes: An existing `RawSpan`, which will define both this
+  ///            `Span`'s lifetime and the memory it represents.
   @_alwaysEmitIntoClient
   @_lifetime(copy bytes)
   public init(viewing bytes: RawSpan) {

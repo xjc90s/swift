@@ -129,6 +129,9 @@ extension MutableRawSpan {
   }
 
   /// Mutate the elements of a typed span as bytes.
+  ///
+  /// The stride of `Element` must equal its size, and the starting
+  /// address of `elements` must be well-aligned for `Element`.
   @_alwaysEmitIntoClient
   @_lifetime(&elements)
   public init<Element: ConvertibleFromBytes & ConvertibleToBytes>(
@@ -138,6 +141,13 @@ extension MutableRawSpan {
   }
 
   /// Unsafely convert a typed span to a raw span.
+  ///
+  /// Creates a `MutableRawSpan` over the memory represented
+  /// by a `MutableSpan<Element>`.
+  ///
+  /// - Parameters:
+  ///   - elements: An existing `MutableSpan<Element>`, from which this
+  ///     `MutableRawSpan` will inherit its lifetime.
   @_alwaysEmitIntoClient
   @unsafe
   @_lifetime(copy elements)
@@ -156,6 +166,13 @@ extension MutableRawSpan {
   }
 
   /// Convert a typed span to a raw span.
+  ///
+  /// Creates a `MutableRawSpan` over the memory represented
+  /// by a `MutableSpan<Element>`.
+  ///
+  /// - Parameters:
+  ///   - elements: An existing `MutableSpan<Element>`, from which this
+  ///     `MutableRawSpan` will inherit its lifetime.
   @_alwaysEmitIntoClient
   @_lifetime(copy elements)
   public init<Element: ConvertibleToBytes & ConvertibleFromBytes>(
@@ -202,6 +219,7 @@ extension MutableRawSpan {
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
   ///     must be greater than or equal to zero, and less than `byteCount`.
+  @_alwaysEmitIntoClient @inline(__always)
   public subscript(_ byteOffset: Int) -> UInt8 {
     get {
       _checkIndex(byteOffset)
@@ -220,6 +238,7 @@ extension MutableRawSpan {
   ///
   /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
   ///     must be greater than or equal to zero, and less than `byteCount`.
+  @_alwaysEmitIntoClient @inline(__always)
   @unsafe
   public subscript(unchecked byteOffset: Int) -> UInt8 {
     get {
@@ -515,7 +534,7 @@ extension MutableRawSpan {
 
   @unsafe
   @_alwaysEmitIntoClient @_transparent
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   internal mutating func _storeBytes<T: BitwiseCopyable>(
     of value: T, toByteOffset offset: Int, as type: T.Type
   ) {
@@ -558,7 +577,7 @@ extension MutableRawSpan {
   ///       writing the bytes from the value.
   ///   - type: The type of the instance to store.
   @_alwaysEmitIntoClient
-  @lifetime(self: copy self)
+  @_lifetime(self: copy self)
   public mutating func storeBytes<T: ConvertibleToBytes & BitwiseCopyable>(
     of value: T, toByteOffset offset: Int, as type: T.Type
   ) {
@@ -579,6 +598,7 @@ extension MutableRawSpan {
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
+  @_lifetime(self: copy self)
   public mutating func storeBytes<
     T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger
   >(
@@ -607,6 +627,7 @@ extension MutableRawSpan {
   ///   - type: The type of the instance to store repeatedly.
   @unsafe
   @_alwaysEmitIntoClient
+  @_lifetime(self: copy self)
   public mutating func storeBytes<T: BitwiseCopyable>(
     repeating repeatedValue: T, count: Int, as type: T.Type
   ) {
@@ -615,11 +636,12 @@ extension MutableRawSpan {
 
   @unsafe
   @_alwaysEmitIntoClient @_transparent
+  @_lifetime(self: copy self)
   internal mutating func _storeBytes<T: BitwiseCopyable>(
     repeating repeatedValue: T, count: Int, as type: T.Type
   ) {
     _precondition(
-      count*MemoryLayout<T>.stride <= _count,
+      count * MemoryLayout<T>.stride <= _count,
       "Span cannot contain every element"
     )
     unsafe _start().withMemoryRebound(to: T.self, capacity: count) {
@@ -638,6 +660,7 @@ extension MutableRawSpan {
   ///      into this span.
   ///   - type: The type of the instance to store repeatedly.
   @_alwaysEmitIntoClient
+  @_lifetime(self: copy self)
   public mutating func storeBytes<T: ConvertibleToBytes & BitwiseCopyable>(
     repeating repeatedValue: T, count: Int, as type: T.Type
   ) {
@@ -657,6 +680,7 @@ extension MutableRawSpan {
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
+  @_lifetime(self: copy self)
   public mutating func storeBytes<
     T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger
   >(
@@ -997,7 +1021,7 @@ extension MutableRawSpan {
 
   @_alwaysEmitIntoClient @inline(__always)
   internal var _reborrowed: Self {
-    @lifetime(&self)
+    @_lifetime(&self)
     mutating get { _mutatingExtracting(...) }
   }
 

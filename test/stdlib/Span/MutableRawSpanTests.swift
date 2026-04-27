@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2025 Apple Inc. and the Swift project authors
+// Copyright (c) 2025 - 2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -725,6 +725,10 @@ suite.test("MutableRawSpan safe loading with ByteOrder")
 
   let little = bytes.load(fromByteOffset: 0, as: UInt16.self, .littleEndian)
   expectEqual(little, 0x0201)
+
+  let native = bytes.load(fromByteOffset: 0, as: UInt16.self, .native)
+  let plain = bytes.load(fromByteOffset: 0, as: UInt16.self)
+  expectEqual(native, plain)
 }
 
 suite.test("MutableRawSpan storeBytes with ByteOrder")
@@ -742,6 +746,10 @@ suite.test("MutableRawSpan storeBytes with ByteOrder")
   bytes.storeBytes(of: 0x0304, toByteOffset: 2, as: UInt16.self, .littleEndian)
   expectEqual(bytes[2], 0x04)
   expectEqual(bytes[3], 0x03)
+
+  bytes.storeBytes(of: 0x0506, toByteOffset: 4, as: UInt16.self, .native)
+  let native = bytes.load(fromByteOffset: 4, as: UInt16.self)
+  expectEqual(native, 0x0506)
 }
 
 suite.test("MutableRawSpan storeBytes repeating with ByteOrder")

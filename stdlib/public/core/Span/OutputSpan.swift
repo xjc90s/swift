@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2024 - 2025 Apple Inc. and the Swift project authors
+// Copyright (c) 2024 - 2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -371,7 +371,7 @@ extension OutputSpan {
   /// Appends to the span as raw bytes.
   ///
   /// Inside the closure, initialize elements by appending to `rawSpan`.
-  /// If the available memory in `self` is less than `n`, this
+  /// If the available memory in `self` is less than `elementCount`, this
   /// function will trap before calling the closure.
   /// After the closure returns, the number of bytes initialized
   /// determines the number of `Element` instances added to `self`.
@@ -380,7 +380,7 @@ extension OutputSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - n: The number of elements (of type `Element`) to initialize.
+  ///   - elementCount: The number of elements (of type `Element`) to initialize.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
   ///       - rawSpan: An `OutputRawSpan` with enough bytes to initialize

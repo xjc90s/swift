@@ -2,7 +2,7 @@
 //
 // This source file is part of the Swift.org open source project
 //
-// Copyright (c) 2024 - 2025 Apple Inc. and the Swift project authors
+// Copyright (c) 2024 - 2026 Apple Inc. and the Swift project authors
 // Licensed under Apache License v2.0 with Runtime Library Exception
 //
 // See https://swift.org/LICENSE.txt for license information
@@ -176,14 +176,14 @@ extension MutableSpan where Element: BitwiseCopyable {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension MutableSpan where Element: ConvertibleFromBytes & ConvertibleToBytes {
-  /// Mutate the elements of this span as raw bytes.
+  /// Create a typed span over the bytes of a mutable raw span.
   ///
   /// The `byteCount` of `mutableBytes` must be a multiple of `Element`'s stride,
   /// and the starting address of `mutableBytes` must be well-aligned for
   /// the type of `Element`. If either of these requirements is not met,
   /// this initializer will trap at runtime.
   @_alwaysEmitIntoClient
-  @lifetime(&mutableBytes)
+  @_lifetime(&mutableBytes)
   public init(mutating mutableBytes: inout MutableRawSpan) {
     _precondition(
       unsafe ((Int(bitPattern: mutableBytes._pointer) &
@@ -207,7 +207,7 @@ extension MutableSpan where Element: ConvertibleFromBytes & ConvertibleToBytes {
   /// the type of `Element`. If either of these requirements is not met,
   /// this initializer will trap at runtime.
   @_alwaysEmitIntoClient
-  @lifetime(copy mutableBytes)
+  @_lifetime(copy mutableBytes)
   public init(mutableBytes: consuming MutableRawSpan) {
     _precondition(
       unsafe ((Int(bitPattern: mutableBytes._pointer) &
@@ -362,7 +362,7 @@ extension MutableSpan where Element: ConvertibleToBytes {
   @_alwaysEmitIntoClient
   @_transparent
   public var bytes: RawSpan {
-    @lifetime(borrow self)
+    @_lifetime(borrow self)
     borrowing get {
       RawSpan(elements: self.span)
     }
@@ -378,7 +378,7 @@ extension MutableSpan where Element: ConvertibleToBytes & ConvertibleFromBytes {
   @_alwaysEmitIntoClient
   @_transparent
   public var mutableBytes: MutableRawSpan {
-    @lifetime(&self)
+    @_lifetime(&self)
     mutating get {
       MutableRawSpan(mutating: &self)
     }
@@ -944,7 +944,7 @@ extension MutableSpan where Element: ~Copyable {
 
   @_alwaysEmitIntoClient @inline(__always)
   internal var _reborrowed: Self {
-    @lifetime(&self)
+    @_lifetime(&self)
     mutating get { _mutatingExtracting(...) }
   }
 
