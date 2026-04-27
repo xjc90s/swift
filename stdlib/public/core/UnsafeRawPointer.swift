@@ -1661,3 +1661,6 @@ extension OpaquePointer {
     unsafe self._rawValue = unwrapped._rawValue
   }
 }
+
+extension UnsafeRawPointer: ConvertibleToBytes {}
+extension UnsafeMutableRawPointer: ConvertibleToBytes {}
