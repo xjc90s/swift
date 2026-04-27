@@ -87,6 +87,15 @@ extension OutputRawSpan {
   @_alwaysEmitIntoClient
   @_transparent
   public var isFull: Bool { _count == capacity }
+
+  /// The indices that are valid for subscripting the span, in ascending
+  /// order.
+  ///
+  /// - Complexity: O(1)
+  @_alwaysEmitIntoClient
+  public var byteOffsets: Range<Int> {
+    unsafe Range(_uncheckedBounds: (0, byteCount))
+  }
 }
 
 @available(SwiftCompatibilitySpan 5.0, *)
@@ -174,9 +183,7 @@ extension OutputRawSpan {
   @_alwaysEmitIntoClient
   @lifetime(self: copy self)
   public mutating func append(_ value: UInt8) {
-    _precondition(_count < capacity, "OutputRawSpan capacity overflow")
-    unsafe _tail().storeBytes(of: value, as: UInt8.self)
-    _count &+= 1
+    unsafe _append(value, as: UInt8.self)
   }
 
   /// Remove the last byte from this span.
@@ -218,6 +225,54 @@ extension OutputRawSpan {
   }
 }
 
+@available(SwiftCompatibilitySpan 5.0, *)
+@_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
+extension OutputRawSpan {
+  // Can we use: @_semantics("fixed_storage.check_index")
+  @_alwaysEmitIntoClient @inline(__always)
+  internal func _checkIndex(_ position: Int) {
+    _precondition(position >= 0 && position < _count, "Index out of bounds")
+  }
+
+  /// Accesses the byte at the specified offset in the span.
+  ///
+  /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
+  ///     must be greater than or equal to zero, and less than `byteCount`.
+  public subscript(_ byteOffset: Int) -> UInt8 {
+    @_alwaysEmitIntoClient
+    get {
+      _checkIndex(byteOffset)
+      return unsafe self[unchecked: byteOffset]
+    }
+    @_alwaysEmitIntoClient
+    set {
+      _checkIndex(byteOffset)
+      unsafe self[unchecked: byteOffset] = newValue
+    }
+  }
+
+  /// Accesses the byte at the specified offset in the span.
+  ///
+  /// This subscript does not validate `byteOffset`. Using this subscript
+  /// with an invalid `byteOffset` results in undefined behaviour.
+  ///
+  /// - Parameter byteOffset: The offset of the byte to access. `byteOffset`
+  ///     must be greater than or equal to zero, and less than `byteCount`.
+  @unsafe
+  public subscript(unchecked byteOffset: Int) -> UInt8 {
+    @_alwaysEmitIntoClient
+    get {
+      unsafe _start().load(fromByteOffset: byteOffset, as: UInt8.self)
+    }
+    @_alwaysEmitIntoClient
+    set {
+      unsafe _start().storeBytes(
+        of: newValue, toByteOffset: byteOffset, as: UInt8.self
+      )
+    }
+  }
+}
+
 //MARK: generic single-element append functions
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
@@ -249,14 +304,14 @@ extension OutputRawSpan {
     _count &+= MemoryLayout<T>.size
   }
 
-  /// Appends a value's bytes to this span's bytes.
+  /// Appends the given value's bytes to this span's bytes.
   ///
   /// There must be at least `MemoryLayout<T>.size` bytes available
   /// in the span.
   ///
   /// - Parameters:
   ///   - value: The value to store as raw bytes.
-  ///   - type: The type of the instance to create.
+  ///   - type: The type of the instance to store.
   @_alwaysEmitIntoClient
   @lifetime(self: copy self)
   public mutating func append<T>(
@@ -265,20 +320,20 @@ extension OutputRawSpan {
     unsafe _append(value, as: T.self)
   }
 
-  /// Appends a value's bytes to the span's memory.
+  /// Appends the given value's bytes to this span's bytes.
   ///
   /// There must be at least `MemoryLayout<T>.size` bytes available
   /// in the span.
   ///
   /// - Parameters:
   ///   - value: The value to store as raw bytes.
-  ///   - type: The type of the instance to create.
+  ///   - type: The type of the instance to store.
   ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
   @lifetime(self: copy self)
   public mutating func append<T>(
-    _ value: T, as type: T.Type, byteOrder: ByteOrder
+    _ value: T, as type: T.Type, _ byteOrder: ByteOrder
   ) where T: ConvertibleToBytes & BitwiseCopyable & FixedWidthInteger {
     let rawValue = switch byteOrder {
     case .bigEndian: value.bigEndian
@@ -330,9 +385,10 @@ extension OutputRawSpan {
   /// available in the span.
   ///
   /// - Parameters:
-  ///   - value: The value to store as raw bytes.
-  ///   - count: The number of copies of `value` to append to this span.
-  ///   - type: The type of the instance to create.
+  ///   - repeatedValue: The value to store as raw bytes.
+  ///   - count: The number of copies of `repeatedValue` to append
+  ///       to this span.
+  ///   - type: The type of the instance to store repeatedly.
   @_alwaysEmitIntoClient
   @lifetime(self: copy self)
   public mutating func append<T>(
@@ -349,9 +405,11 @@ extension OutputRawSpan {
   /// available in the span.
   ///
   /// - Parameters:
-  ///   - value: The value to store as raw bytes.
-  ///   - count: The number of copies of `value` to append to this span.
-  ///   - type: The type of the instance to create.
+  ///   - repeatedValue: The value to store as raw bytes.
+  ///   - count: The number of copies of `repeatedValue` to append
+  ///       to this span.
+  ///   - type: The type of the instance to store repeatedly.
+  ///   - byteOrder: The order in which the bytes will be encoded to the span.
   @_alwaysEmitIntoClient
   @available(SwiftStdlib 6.4, *)
   @lifetime(self: copy self)
@@ -372,7 +430,7 @@ extension OutputRawSpan {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension OutputRawSpan {
-  /// Append to the span as elements of a specific type.
+  /// Appends to the span as elements of a specific type.
   ///
   /// There must be at least `n * MemoryLayout<T>.stride` bytes
   /// available in the span. The address of the next uninitialized byte
@@ -386,8 +444,8 @@ extension OutputRawSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - n: The number of `T` elements to initialize
-  ///   - type: The type of the instance to create.
+  ///   - n: The number of `T` elements to initialize.
+  ///   - type: The type of the elements to store.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
   ///       - typedSpan: An `OutputSpan` over enough bytes to initialize
@@ -395,7 +453,7 @@ extension OutputRawSpan {
   @_alwaysEmitIntoClient
   @_lifetime(self: copy self)
   mutating func append<T, E: Error>(
-    elements n: Int,
+    elementCount n: Int,
     as type: T.Type,
     initializingWith initializer:
       (_ typedSpan: inout OutputSpan<T>) throws(E) -> Void
@@ -403,9 +461,6 @@ extension OutputRawSpan {
     let total = n * MemoryLayout<T>.stride
     _precondition(total <= freeCapacity, "OutputRawSpan capacity overflow")
     let tail = unsafe _tail()
-    _precondition(
-      Int(bitPattern: tail) & (MemoryLayout<T>.alignment &- 1) == 0,
-    )
     var initialized = 0
     defer {
       _count += initialized &* MemoryLayout<T>.stride
