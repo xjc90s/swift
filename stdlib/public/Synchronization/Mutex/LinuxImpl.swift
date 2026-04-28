@@ -11,51 +11,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Plain-futex Mutex: 3-state lock word, bounded spin, kernel fallback.
-//
-// ```mermaid
-// flowchart TD
-//     subgraph lockflow ["_lock()"]
-//         fastCAS{{"compareExchange(.unlocked, .locked)"}}
-//         fastCAS -- "exchanged == true" --> locked([LOCKED])
-//         fastCAS -- "exchanged == false" --> slow([_lockSlow])
-//
-//         slow --> stateCheck{"initialState == .contended?"}
-//         stateCheck -- no --> spinTry
-//         stateCheck -- yes --> depthCheck{"depth >= maxActiveSpinners?"}
-//         depthCheck -- no --> spinTry
-//         depthCheck -- yes --> parkClaim
-//
-//         subgraph spinloop ["spin loop (repeat while spinsRemaining > 0)"]
-//             spinTry{{"compareExchange(.unlocked, .locked)"}} -- "exchanged == false, state == .locked" --> pause["pause CPU<br/>(pauseBase + per-thread jitter)"]
-//             pause --> spinsCheck{"spinsRemaining -= 1<br/>spinsRemaining > 0?"}
-//             spinsCheck -- yes --> spinTry
-//         end
-//         spinTry -- "exchanged == true" --> locked
-//         spinTry -- "state == .contended" --> parkClaim
-//         spinsCheck -- no --> parkClaim
-//
-//         subgraph parkloop ["park loop (while true)"]
-//             parkClaim["storage.exchange(.contended)"] --> exchResult{"returned == .unlocked?"}
-//             exchResult -- no --> inc["slowPathDepth += 1<br/>(first miss only)"]
-//             inc --> wait[["_futexWait(expected: .contended)"]]
-//             wait -- "woken / EAGAIN / EINTR" --> parkClaim
-//         end
-//         exchResult -- yes --> dec["slowPathDepth -= 1<br/>(if previously bumped)"]
-//         dec --> locked
-//     end
-//
-//     subgraph unlockflow ["_unlock()"]
-//         unlockSwap{{"storage.exchange(.unlocked)"}}
-//         unlockSwap -- "== .locked" --> done([done])
-//         unlockSwap -- "== .contended" --> wake[["_futexWake(count: 1)"]]
-//     end
-//
-//     wake -. wakes parker .-> wait
-//
-//     %% highlight loop back-edges (spin continue, park retry)
-//     linkStyle 9 stroke:#ff8800,stroke-width:2px
-//     linkStyle 16 stroke:#ff8800,stroke-width:2px
-// ```
+// See: docs/SynchronizationMutexLinux.md
 //
 //===----------------------------------------------------------------------===//
 
