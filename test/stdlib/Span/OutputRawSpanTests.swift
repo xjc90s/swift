@@ -13,6 +13,7 @@
 // RUN: %target-run-stdlib-swift(-strict-memory-safety -enable-experimental-feature Lifetimes)
 
 // REQUIRES: executable_test
+// REQUIRES: swift_feature_Lifetimes
 
 import StdlibUnittest
 
