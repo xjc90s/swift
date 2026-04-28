@@ -549,7 +549,7 @@ extension Span where Element: Copyable {
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension Span where Element: ConvertibleToBytes {
 
-  /// Construct a raw span over the memory represented by this span.
+  /// A raw span over the memory represented by this span.
   ///
   /// - Returns: A RawSpan over the memory represented by this span.
   @_alwaysEmitIntoClient

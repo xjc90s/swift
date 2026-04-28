@@ -132,6 +132,8 @@ extension MutableRawSpan {
   ///
   /// The stride of `Element` must equal its size, and the starting
   /// address of `elements` must be well-aligned for `Element`.
+  ///
+  /// - Parameter elements: A typed span to reinterpret as raw bytes.
   @_alwaysEmitIntoClient
   @_lifetime(&elements)
   public init<Element: ConvertibleFromBytes & ConvertibleToBytes>(
@@ -589,6 +591,7 @@ extension MutableRawSpan {
   ///
   /// The range of bytes required to store a value of type `T` starting at
   /// byte offset `offset` must be completely within the span.
+  /// `offset` is not required to be aligned for `T`.
   ///
   /// - Parameters:
   ///   - value: The value to store as raw bytes.

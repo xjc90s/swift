@@ -176,12 +176,14 @@ extension MutableSpan where Element: BitwiseCopyable {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension MutableSpan where Element: ConvertibleFromBytes & ConvertibleToBytes {
-  /// Create a typed span over the bytes of a mutable raw span.
+  /// Mutate untyped memory as a typed span.
   ///
   /// The `byteCount` of `mutableBytes` must be a multiple of `Element`'s stride,
   /// and the starting address of `mutableBytes` must be well-aligned for
   /// the type of `Element`. If either of these requirements is not met,
   /// this initializer will trap at runtime.
+  ///
+  /// - Parameter mutableBytes: A raw span to reinterpret as typed elements.
   @_alwaysEmitIntoClient
   @_lifetime(&mutableBytes)
   public init(mutating mutableBytes: inout MutableRawSpan) {
@@ -206,6 +208,8 @@ extension MutableSpan where Element: ConvertibleFromBytes & ConvertibleToBytes {
   /// and the starting address of `mutableBytes` must be well-aligned for
   /// the type of `Element`. If either of these requirements is not met,
   /// this initializer will trap at runtime.
+  ///
+  /// - Parameter mutableBytes: A raw span to reinterpret as typed elements.
   @_alwaysEmitIntoClient
   @_lifetime(copy mutableBytes)
   public init(mutableBytes: consuming MutableRawSpan) {
@@ -356,7 +360,7 @@ extension MutableSpan where Element: BitwiseCopyable {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension MutableSpan where Element: ConvertibleToBytes {
-  /// Construct a raw span over the memory represented by this span.
+  /// A raw span over the memory represented by this span.
   ///
   /// - Returns: A RawSpan over the memory represented by this span.
   @_alwaysEmitIntoClient
@@ -372,7 +376,7 @@ extension MutableSpan where Element: ConvertibleToBytes {
 @available(SwiftCompatibilitySpan 5.0, *)
 @_originallyDefinedIn(module: "Swift;CompatibilitySpan", SwiftCompatibilitySpan 6.2)
 extension MutableSpan where Element: ConvertibleToBytes & ConvertibleFromBytes {
-  /// Construct a mutable raw span over the memory represented by this span.
+  /// A mutable raw span over the memory represented by this span.
   ///
   /// - Returns: A MutableRawSpan over the memory represented by this span.
   @_alwaysEmitIntoClient
