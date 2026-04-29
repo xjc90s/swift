@@ -550,7 +550,12 @@ unsigned Decl::getAttachedMacroDiscriminator(DeclBaseName macroName,
     if (role == MacroRole::Body) {
       if (auto *accessor = dyn_cast<AccessorDecl>(this)) {
         if (auto *var = dyn_cast<VarDecl>(accessor->getStorage())) {
-          return var->getAttachedMacroDiscriminator(macroName, role, attr);
+          if (!var->hasStorage() && !var->isSettable(/*useDC=*/nullptr)) {
+            auto *getter = var->getParsedAccessor(AccessorKind::Get);
+            if (!getter || getter->isImplicitGetter()) {
+              return var->getAttachedMacroDiscriminator(macroName, role, attr);
+            }
+          }
         }
       }
     }
