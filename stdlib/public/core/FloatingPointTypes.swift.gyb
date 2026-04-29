@@ -1373,7 +1373,9 @@ internal struct _${Self}AnyHashableBox: _AnyHashableBox {
 % if bits == 80:
 @available(*, unavailable, message: "Float80 cannot conform to ConvertibleToBytes")
 % end
+${Availability(bits)}
 extension ${Self}: ConvertibleToBytes {}
+${Availability(bits)}
 extension ${Self}: ConvertibleFromBytes {}
 
 //===----------------------------------------------------------------------===//
