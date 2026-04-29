@@ -20,7 +20,7 @@ defer { runAllTests() }
 
 suite.test("bitCast integer to integer")
 .require(.stdlib_6_4).code {
-  let u = 123_456_789_000
+  let u = 123_456_789
   let s = bitCast(u, to: UInt.self)
   expectEqual(s, UInt(bitPattern: u))
 
