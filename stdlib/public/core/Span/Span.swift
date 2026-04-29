@@ -557,8 +557,7 @@ extension Span where Element: ConvertibleToBytes {
   public var bytes: RawSpan {
     @_lifetime(copy self)
     get {
-      let rawSpan = unsafe RawSpan(unsafeElements: self)
-      return unsafe _overrideLifetime(rawSpan, copying: self)
+      RawSpan(elements: self)
     }
   }
 }
