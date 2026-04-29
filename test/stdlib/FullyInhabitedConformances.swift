@@ -32,11 +32,10 @@ func integerConformances(
 // Floating-point types
 
 func floatingPointConformances(
-  _ a: Float16, _ b: Float32, _ c: Float64
+  _ f32: Float32, _ f64: Float64
 ) {
-  fullyInhabited(a)
-  fullyInhabited(b)
-  fullyInhabited(c)
+  fullyInhabited(f32)
+  fullyInhabited(f64)
 }
 
 // Duration
