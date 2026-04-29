@@ -268,7 +268,7 @@ protected:
     Kind : 2
   );
 
-  SWIFT_INLINE_BITFIELD(ClosureExpr, AbstractClosureExpr, 1+1+1+1+1+1+1+1+1,
+  SWIFT_INLINE_BITFIELD(ClosureExpr, AbstractClosureExpr, 1+1+1+1+1+1+1+1+1+1,
     /// True if closure parameters were synthesized from anonymous closure
     /// variables.
     HasAnonymousClosureVars : 1,
@@ -303,7 +303,11 @@ protected:
     /// Whether this closure was type-checked as an argument to a macro. This
     /// is only populated after type-checking, and only exists for diagnostic
     /// logic. Do not add more uses of this.
-    IsMacroArgument : 1
+    IsMacroArgument : 1,
+
+    /// True if this is a closure literal that is passed as an argument to a
+    /// call that references `nonisolated(nonsending)` declaration.
+    IsPassedToNonisolatedNonsendingCall : 1
   );
 
   SWIFT_INLINE_BITFIELD_FULL(BindOptionalExpr, Expr, 16,
@@ -4317,6 +4321,7 @@ public:
     Bits.ClosureExpr.NoGlobalActorAttribute = false;
     Bits.ClosureExpr.RequiresDynamicIsolationChecking = false;
     Bits.ClosureExpr.IsMacroArgument = false;
+    Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall = false;
   }
 
   SourceRange getSourceRange() const;
@@ -4425,6 +4430,16 @@ public:
 
   void setIsMacroArgument(bool value = true) {
     Bits.ClosureExpr.IsMacroArgument = value;
+  }
+
+  /// Determines whether this is a closure literal that is passed as an argument
+  /// to a call that references `nonisolated(nonsending)` declaration.
+  bool isPassedToNonisolatedNonsendingCall() const {
+    return Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall;
+  }
+
+  void setIsPassedToNonisolatedNonsendingCall(bool value = true) {
+    Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall = value;
   }
 
   /// Determine whether this closure expression has an

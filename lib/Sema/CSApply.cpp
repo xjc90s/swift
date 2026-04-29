@@ -6071,7 +6071,8 @@ static bool hasCurriedSelf(ConstraintSystem &cs, ConcreteDeclRef callee,
 static void applyContextualClosureFlags(Expr *expr, unsigned paramIdx,
                                         const ParameterListInfo &paramInfo,
                                         bool requiresDynamicIsolationChecking,
-                                        bool isMacroArg) {
+                                        bool isMacroArg,
+                                        bool isNonisolatedNonsendingCall) {
   if (auto closure = dyn_cast<ClosureExpr>(expr)) {
     closure->setAllowsImplicitSelfCapture(
         paramInfo.isImplicitSelfCapture(paramIdx));
@@ -6085,18 +6086,21 @@ static void applyContextualClosureFlags(Expr *expr, unsigned paramIdx,
     closure->setRequiresDynamicIsolationChecking(
         requiresDynamicIsolationChecking);
     closure->setIsMacroArgument(isMacroArg);
+    closure->setIsPassedToNonisolatedNonsendingCall(
+        isNonisolatedNonsendingCall);
     return;
   }
 
   if (auto captureList = dyn_cast<CaptureListExpr>(expr)) {
     applyContextualClosureFlags(captureList->getClosureBody(), paramIdx,
                                 paramInfo, requiresDynamicIsolationChecking,
-                                isMacroArg);
+                                isMacroArg, isNonisolatedNonsendingCall);
   }
 
   if (auto identity = dyn_cast<IdentityExpr>(expr)) {
     applyContextualClosureFlags(identity->getSubExpr(), paramIdx, paramInfo,
-                                requiresDynamicIsolationChecking, isMacroArg);
+                                requiresDynamicIsolationChecking, isMacroArg,
+                                isNonisolatedNonsendingCall);
   }
 }
 
@@ -6220,7 +6224,7 @@ ArgumentList *ExprRewriter::coerceCallArguments(
     return true;
   }();
 
-  auto applyFlagsToArgument = [&paramInfo,
+  auto applyFlagsToArgument = [&funcType, &paramInfo,
                                &closuresRequireDynamicIsolationChecking,
                                &locator](unsigned paramIdx, Expr *argument) {
     if (!isClosureLiteralExpr(argument))
@@ -6228,9 +6232,9 @@ ArgumentList *ExprRewriter::coerceCallArguments(
 
     bool isMacroArg = isExpr<MacroExpansionExpr>(locator.getAnchor());
 
-    applyContextualClosureFlags(argument, paramIdx, paramInfo,
-                                closuresRequireDynamicIsolationChecking,
-                                isMacroArg);
+    applyContextualClosureFlags(
+        argument, paramIdx, paramInfo, closuresRequireDynamicIsolationChecking,
+        isMacroArg, funcType->getIsolation().isNonisolatedNonsending());
   };
 
   // Quickly test if any further fix-ups for the argument types are necessary.
