@@ -292,6 +292,7 @@ suite.test("append one safe")
 }
 
 suite.test("append one overflow")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .require(.stdlib_6_4).code {
 
   var a = Allocation(byteCount: 1)

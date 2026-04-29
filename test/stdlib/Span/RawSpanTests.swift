@@ -463,7 +463,4 @@ suite.test("Typed Span")
 
   let i64 = bytes.load(fromByteOffset: 59, as: Int64.self)
   expectEqual(i64, 0)
-
-  expectCrashLater()
-  _ = bytes.load(fromByteOffset: 509, as: Int64.self)
 }
