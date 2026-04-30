@@ -627,7 +627,6 @@ ConstraintSystem::SolverState::SolverState(
 ConstraintSystem::SolverState::~SolverState() {
   assert((CS.solverState == this) &&
          "Expected constraint system to have this solver state!");
-  CS.NumTrailSteps += NumTrailSteps;
   CS.solverState = nullptr;
 
   // If constraint system ended up being in an invalid state
@@ -764,7 +763,9 @@ void ConstraintSystem::SolverState::endScope(unsigned scopeNumber,
   ASSERT(depth > 0);
   --depth;
 
-  NumTrailSteps += (endTrailSteps - startTrailSteps);
+  unsigned steps = endTrailSteps - startTrailSteps;
+  NumTrailSteps += steps;
+  CS.NumTrailSteps += steps;
 
   unsigned countSolverScopes = NumSolverScopes - scopeNumber;
   if (countSolverScopes == 1)
