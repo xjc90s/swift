@@ -2152,7 +2152,7 @@ void AttributeChecker::visitDynamicMemberLookupAttr(
   // group. (2) produces warnings in the current language mode, which will be
   // upgraded to errors in the next language mode (hence the separate diagnostic
   // stages).
-  SubscriptDecl *validButInacessible = nullptr;
+  SubscriptDecl *validButInaccessible = nullptr;
   SmallVector<std::pair<SubscriptDecl *, DynamicMemberLookupSubscriptEligibility>>
       invalid;
 
@@ -2171,14 +2171,16 @@ void AttributeChecker::visitDynamicMemberLookupAttr(
         return;
       }
 
-      validButInacessible = SD;
+      validButInaccessible = SD;
       continue;
     }
 
     invalid.emplace_back(SD, eligibility);
   }
 
-  if (validButInacessible != nullptr) {
+  bool diagnosed = false;
+
+  if (validButInaccessible != nullptr) {
     const auto languageModeForError = LanguageMode::future;
     bool shouldError = ctx.isLanguageModeAtLeast(languageModeForError);
 
@@ -2188,33 +2190,30 @@ void AttributeChecker::visitDynamicMemberLookupAttr(
     shouldError |= decl->getModuleContext()->isResilient() &&
                    !decl->getDeclContext()->isInSwiftinterface();
 
-    auto diag = diagnose(validButInacessible->getLoc(),
+    auto diag = diagnose(validButInaccessible->getLoc(),
                          diag::dynamic_member_lookup_candidate_inaccessible,
-                         validButInacessible);
-    fixItAccess(diag, validButInacessible,
+                         validButInaccessible);
+    fixItAccess(diag, validButInaccessible,
                 requiredAccessScope.requiredAccessForDiagnostics(),
                 /*isForSetter=*/false, /*useDefaultAccess=*/false,
                 /*updateAttr=*/false);
     diag.warnUntilLanguageModeIf(!shouldError, languageModeForError);
 
-    if (shouldError) {
+    if (shouldError)
       attr->setInvalid();
-      return;
-    }
+
+    return;
   }
 
   if (!invalid.empty()) {
     for (const auto &pair : invalid) {
-      pair.second.diagnose(pair.first);
+      diagnosed |= pair.second.diagnose(pair.first);
     }
-
-    attr->setInvalid();
-    return;
   }
 
-  // There were no candidates at all.
   attr->setInvalid();
-  diagnose(attr->getStartLoc(), diag::invalid_dynamic_member_lookup_type, type);
+  if (!diagnosed)
+    diagnose(attr->getStartLoc(), diag::invalid_dynamic_member_lookup_type, type);
 }
 
 /// Get the innermost enclosing declaration for a declaration.
