@@ -3,6 +3,8 @@
 
 // REQUIRES: executable_test
 
+import StdlibUnittest
+
 struct Foo: ~Copyable {
   func idk() -> String {
     "idk"
