@@ -112,17 +112,20 @@ bool ConstraintSystem::isTooComplex(size_t solutionMemory) {
   return false;
 }
 
-ExpressionTimer::ExpressionTimer(ConstraintSystem &CS, unsigned thresholdInSecs)
+ComplexityTracker::ComplexityTracker(ConstraintSystem &CS,
+                                     unsigned thresholdInSecs,
+                                     unsigned warnTimeLimitInMillis,
+                                     unsigned warnScopeLimit,
+                                     unsigned warnTrailLimit)
     : CS(CS),
       StartTime(llvm::TimeRecord::getCurrentTime()),
       ThresholdInSecs(thresholdInSecs),
+      WarnTimeLimitInMillis(warnTimeLimitInMillis),
+      WarnScopeLimit(warnScopeLimit),
+      WarnTrailLimit(warnTrailLimit),
       PrintWarning(true) {}
 
-unsigned ExpressionTimer::getWarnLimit() const {
-  return CS.getASTContext().TypeCheckerOpts.WarnLongExpressionTypeChecking;
-}
-
-ExpressionTimer::~ExpressionTimer() {
+ComplexityTracker::~ComplexityTracker() {
   auto elapsed = getElapsedProcessTimeInFractionalSeconds();
   unsigned elapsedMS = static_cast<unsigned>(elapsed * 1000);
   auto &ctx = CS.getASTContext();
@@ -141,34 +144,32 @@ ExpressionTimer::~ExpressionTimer() {
     return;
 
   // Time-based warning (non-deterministic).
-  const auto WarnLimit = getWarnLimit();
-  if (WarnLimit > 0 && elapsedMS >= WarnLimit && range.Start.isValid()) {
+  if (WarnTimeLimitInMillis > 0 && elapsedMS >= WarnTimeLimitInMillis &&
+      range.Start.isValid()) {
     ctx.Diags
         .diagnose(range.Start, diag::debug_long_expression, elapsedMS,
-                  WarnLimit)
+                  WarnTimeLimitInMillis)
         .highlight(range);
   }
 
   // Scope-based warning (deterministic).
-  const auto scopeLimit = ctx.TypeCheckerOpts.WarnLongExpressionTypeCheckingScopes;
-  if (scopeLimit > 0) {
+  if (WarnScopeLimit > 0) {
     unsigned numScopes = CS.getNumSolverScopes();
-    if (numScopes > scopeLimit && range.Start.isValid()) {
+    if (numScopes > WarnScopeLimit && range.Start.isValid()) {
       ctx.Diags
           .diagnose(range.Start, diag::debug_long_expression_scopes,
-                    numScopes, scopeLimit)
+                    numScopes, WarnScopeLimit)
           .highlight(range);
     }
   }
 
   // Trail-based warning (deterministic).
-  const auto trailLimit = ctx.TypeCheckerOpts.WarnLongExpressionTypeCheckingTrail;
-  if (trailLimit > 0) {
+  if (WarnTrailLimit > 0) {
     unsigned numSteps = CS.getNumTrailSteps();
-    if (numSteps > trailLimit && range.Start.isValid()) {
+    if (numSteps > WarnTrailLimit && range.Start.isValid()) {
       ctx.Diags
           .diagnose(range.Start, diag::debug_long_expression_trail,
-                    numSteps, trailLimit)
+                    numSteps, WarnTrailLimit)
           .highlight(range);
     }
   }
@@ -208,8 +209,8 @@ void ConstraintSystem::startExpressionTimer() {
   unsigned timeout = opts.ExpressionTimeoutThreshold;
 
   // If either the timeout is set, we're asked to emit warnings, or we're
-  // asked to debug expression type-checking times, start the timer.
-  // Otherwise, don't start the timer, it's needless overhead.
+  // asked to debug expression type-checking times, start the tracker.
+  // Otherwise, don't start the tracker, it's needless overhead.
   if (timeout == 0) {
     if (opts.WarnLongExpressionTypeChecking == 0 &&
         opts.WarnLongExpressionTypeCheckingScopes == 0 &&
@@ -217,10 +218,12 @@ void ConstraintSystem::startExpressionTimer() {
         !opts.DebugTimeExpressions)
       return;
 
-    timeout = ExpressionTimer::NoLimit;
+    timeout = ComplexityTracker::NoLimit;
   }
 
-  Timer.emplace(*this, timeout);
+  Timer.emplace(*this, timeout, opts.WarnLongExpressionTypeChecking,
+                opts.WarnLongExpressionTypeCheckingScopes,
+                opts.WarnLongExpressionTypeCheckingTrail);
 }
 
 void ConstraintSystem::incrementScopeCounter() {

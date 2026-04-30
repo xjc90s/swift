@@ -227,24 +227,37 @@ public:
 };
 
 
-class ExpressionTimer {
+class ComplexityTracker {
   ConstraintSystem &CS;
   llvm::TimeRecord StartTime;
 
   /// The number of seconds from creation until
-  /// this timer is considered expired.
+  /// this tracker is considered expired.
   unsigned ThresholdInSecs;
+
+  /// Threshold (in milliseconds) for emitting a wall-clock-based warning.
+  /// 0 disables the warning.
+  unsigned WarnTimeLimitInMillis;
+
+  /// Threshold for emitting a solver-scope-based warning.
+  /// 0 disables the warning.
+  unsigned WarnScopeLimit;
+
+  /// Threshold for emitting a solver-trail-step-based warning.
+  /// 0 disables the warning.
+  unsigned WarnTrailLimit;
 
   bool PrintWarning;
 
 public:
   const static unsigned NoLimit = (unsigned) -1;
 
-  ExpressionTimer(ConstraintSystem &CS, unsigned thresholdInSecs);
+  ComplexityTracker(ConstraintSystem &CS, unsigned thresholdInSecs,
+                    unsigned warnTimeLimitInMillis, unsigned warnScopeLimit,
+                    unsigned warnTrailLimit);
 
-  ~ExpressionTimer();
+  ~ComplexityTracker();
 
-  unsigned getWarnLimit() const;
   llvm::TimeRecord startedAt() const { return StartTime; }
 
   /// Return the elapsed process time (including fractional seconds)
@@ -782,7 +795,7 @@ public:
   DeclContext *DC;
   ConstraintSystemOptions Options;
   DiagnosticTransaction *diagnosticTransaction;
-  std::optional<ExpressionTimer> Timer;
+  std::optional<ComplexityTracker> Timer;
 
   friend class Solution;
   friend class ConstraintFix;
