@@ -36,12 +36,12 @@ internal func _cycleCounter() -> UInt64 {
 #endif
 }
 
-extension Atomic where Value == _MutexHandle.State {
+extension Atomic where Value == UInt32 {
   // Sleeps while the underlying word equals `expected`. Returns 0 on a normal
   // wake or the errno value (`EAGAIN=11` and `EINTR=4` are the expected retryable
   // cases).
-  internal borrowing func _futexWait(expected: _MutexHandle.State) -> UInt32 {
-    unsafe _swift_stdlib_futex_wait(.init(_rawAddress), expected.rawValue)
+  internal borrowing func _futexWait(expected: UInt32) -> UInt32 {
+    unsafe _swift_stdlib_futex_wait(.init(_rawAddress), expected)
   }
 
   // Wakes up to `count` waiters parked on this word. Result is the number
@@ -51,24 +51,18 @@ extension Atomic where Value == _MutexHandle.State {
   }
 }
 
-@available(SwiftStdlib 6.0, *)
-extension _MutexHandle {
-  @available(SwiftStdlib 6.0, *)
-  @frozen
-  @usableFromInline
-  internal enum State: UInt32, AtomicRepresentable {
-    case unlocked
-    case locked      // held, no waiters parked in the kernel
-    case contended   // held, at least one waiter parked in the kernel
-  }
-}
 
 @available(SwiftStdlib 6.0, *)
 @frozen
 @_staticExclusiveOnly
 public struct _MutexHandle: ~Copyable {
+  // Lock word states.
+  @usableFromInline internal static var unlocked:  UInt32 { 0 } // no owner
+  @usableFromInline internal static var locked:    UInt32 { 1 } // held, no waiters parked in kernel
+  @usableFromInline internal static var contended: UInt32 { 2 } // held, at least one waiter parked in kernel
+
   @usableFromInline
-  let storage: Atomic<State>
+  let storage: Atomic<UInt32>
 
   // Approximate count of threads currently in `_lockSlow`'s kernel phase. Read by the entry depth gate;
   // inexact (e.g. counts briefly run between wake and retry), but used only as a hint.
@@ -79,7 +73,7 @@ public struct _MutexHandle: ~Copyable {
   @_alwaysEmitIntoClient
   @_transparent
   public init() {
-    storage = Atomic(.unlocked)
+    storage = Atomic(0)
     slowPathDepth = Atomic(0)
   }
 }
@@ -103,8 +97,8 @@ extension _MutexHandle {
   @_transparent
   internal borrowing func _lock() {
     let (exchanged, _) = storage.compareExchange(
-      expected: .unlocked,
-      desired: .locked,
+      expected: Self.unlocked,
+      desired: Self.locked,
       successOrdering: .acquiring,
       failureOrdering: .relaxed
     )
@@ -140,7 +134,7 @@ extension _MutexHandle {
     // Skip the spin when the queue is already deep - extra spinners just slow down the parked threads' handoff.
     let initialState = storage.load(ordering: .relaxed)
     let depth = slowPathDepth.load(ordering: .relaxed)
-    let skipSpin = (initialState == .contended) && (depth >= maxActiveSpinners)
+    let skipSpin = (initialState == Self.contended) && (depth >= maxActiveSpinners)
 
     if !skipSpin {
       // Cycle-counter low bits provide per-thread jitter to de-correlate pause timings across threads released
@@ -159,10 +153,10 @@ extension _MutexHandle {
         // able to attempt to acquire the lock.
         var state = storage.load(ordering: .relaxed)
 
-        if state == .unlocked {
+        if state == Self.unlocked {
           let (exchanged, original) = storage.compareExchange(
-            expected: .unlocked,
-            desired: .locked,
+            expected: Self.unlocked,
+            desired: Self.locked,
             successOrdering: .acquiring,
             failureOrdering: .relaxed
           )
@@ -170,13 +164,13 @@ extension _MutexHandle {
             // Locked!
             return
           }
-          // CAS failed: another thread beat us to `.locked`, or a thread in the kernel phase wrote `.contended`.
+          // CAS failed: another thread beat us to `locked`, or a thread in the kernel phase wrote `contended`.
           // Refresh state with what we actually observed so the check below sees it.
           state = original
         }
 
         // Don't steal the lock from a thread the kernel is about to wake.
-        if state == .contended { break }
+        if state == Self.contended { break }
 
         // Inform the CPU that we're doing a spin loop which should have the
         // effect of slowing down this loop if only by a little to preserve
@@ -199,7 +193,7 @@ extension _MutexHandle {
       // Runs unconditionally, even on the skipSpin path: this exchange sometimes grabs the lock
       // (when the unlocker released during the gate->kernel transit), cheaper than forcing every
       // gated thread through a `futex_wait` + wake round-trip.
-      if storage.exchange(.contended, ordering: .acquiring) == .unlocked {
+      if storage.exchange(Self.contended, ordering: .acquiring) == Self.unlocked {
         if visibleToSpinners {
           _ = slowPathDepth.wrappingSubtract(1, ordering: .relaxed)
         }
@@ -215,7 +209,7 @@ extension _MutexHandle {
       }
 
       // Sleep while `*word == .contended`. Returns 0 on a normal wake from `FUTEX_WAKE`, or an errno for retryable cases.
-      let waitResult = storage._futexWait(expected: .contended)
+      let waitResult = storage._futexWait(expected: Self.contended)
       switch waitResult {
       // `EINTR`  - "A `FUTEX_WAIT` or `FUTEX_WAIT_BITSET` operation was interrupted
       //             by a signal (see signal(7)). Before Linux 2.6.22, this error
@@ -240,8 +234,8 @@ extension _MutexHandle {
   internal borrowing func _tryLock() -> Bool {
     // Do a user space cmpxchg to see if we can easily acquire the lock.
     return storage.compareExchange(
-      expected: .unlocked,
-      desired: .locked,
+      expected: Self.unlocked,
+      desired: Self.locked,
       successOrdering: .acquiring,
       failureOrdering: .relaxed
     ).exchanged
@@ -252,7 +246,7 @@ extension _MutexHandle {
   @_transparent
   internal borrowing func _unlock() {
     // Release the lock atomically in userspace. Previous value tells us whether anyone is parked.
-    if storage.exchange(.unlocked, ordering: .releasing) == .locked {
+    if storage.exchange(Self.unlocked, ordering: .releasing) == Self.locked {
       // No waiters, unlocked!
       return
     }
