@@ -430,7 +430,7 @@ extension OutputRawSpan {
 extension OutputRawSpan {
   /// Appends to the span as elements of a specific type.
   ///
-  /// There must be at least `elementCount * MemoryLayout<T>.stride` bytes
+  /// There must be at least `n * MemoryLayout<T>.stride` bytes
   /// available in the span. The address of the next uninitialized byte
   /// must be well-aligned for instances of type `type`.
   ///
@@ -442,7 +442,7 @@ extension OutputRawSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - elementCount: The number of `T` elements to initialize.
+  ///   - n: The number of `T` elements to initialize.
   ///   - type: The type of the elements to store.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
@@ -451,7 +451,7 @@ extension OutputRawSpan {
   @_alwaysEmitIntoClient
   @_lifetime(self: copy self)
   public mutating func append<T, E: Error>(
-    elementCount n: Int,
+    upTo n: Int,
     as type: T.Type,
     initializingWith initializer:
       (_ typedSpan: inout OutputSpan<T>) throws(E) -> Void

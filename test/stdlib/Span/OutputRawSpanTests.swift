@@ -394,12 +394,12 @@ suite.test("append repeating with ByteOrder")
   }
 }
 
-suite.test("append(elementCount:as:initializingWith:)")
+suite.test("append(upTo:as:initializingWith:)")
 .require(.stdlib_6_4).code {
 
   var a = Allocation(byteCount: 64)
   a.initialize {
-    $0.append(elementCount: 3, as: UInt32.self) { typedSpan in
+    $0.append(upTo: 3, as: UInt32.self) { typedSpan in
       typedSpan.append(0xaaaaaaaa)
       typedSpan.append(0xbbbbbbbb)
       typedSpan.append(0xcccccccc)
@@ -416,13 +416,13 @@ suite.test("append(elementCount:as:initializingWith:)")
   }
 }
 
-suite.test("append(elementCount:as:initializingWith:) partial fill")
+suite.test("append(upTo:as:initializingWith:) partial fill")
 .require(.stdlib_6_4).code {
 
   var a = Allocation(byteCount: 64)
   try! a.initialize {
     do throws(MyTestError) {
-      try $0.append(elementCount: 4, as: UInt32.self) {
+      try $0.append(upTo: 4, as: UInt32.self) {
         typedSpan throws(MyTestError) in
         typedSpan.append(0x11111111)
         typedSpan.append(0x22222222)
@@ -442,31 +442,31 @@ suite.test("append(elementCount:as:initializingWith:) partial fill")
   expectEqual(v1, 0x22222222)
 }
 
-suite.test("append(elementCount:as:initializingWith:) overflow")
+suite.test("append(upTo:as:initializingWith:) overflow")
 .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .require(.stdlib_6_4).code {
 
   var a = Allocation(byteCount: 16)
   a.initialize {
     expectCrashLater()
-    $0.append(elementCount: 100, as: UInt32.self) {
+    $0.append(upTo: 100, as: UInt32.self) {
       _ in
     }
   }
 }
 
-suite.test("append(elementCount:as:initializingWith:) negative count")
+suite.test("append(upTo:as:initializingWith:) negative count")
 .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .require(.stdlib_6_4).code {
 
   var a = Allocation(byteCount: 16)
   a.initialize {
     expectCrashLater()
-    $0.append(elementCount: -1, as: UInt32.self) { _ in }
+    $0.append(upTo: -1, as: UInt32.self) { _ in }
   }
 }
 
-suite.test("append(elementCount:as:initializingWith:) misaligned")
+suite.test("append(upTo:as:initializingWith:) misaligned")
 .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .require(.stdlib_6_4).code {
 
@@ -475,7 +475,7 @@ suite.test("append(elementCount:as:initializingWith:) misaligned")
     $0.append(UInt8(1))
     expectEqual($0.byteCount, 1)
     expectCrashLater()
-    $0.append(elementCount: 1, as: UInt32.self) { _ in }
+    $0.append(upTo: 1, as: UInt32.self) { _ in }
   }
 }
 

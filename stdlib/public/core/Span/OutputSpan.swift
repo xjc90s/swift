@@ -371,7 +371,7 @@ extension OutputSpan {
   /// Appends to the span as raw bytes.
   ///
   /// Inside the closure, initialize elements by appending to `rawSpan`.
-  /// If the available memory in `self` is less than `elementCount`, this
+  /// If the available memory in `self` is less than `n`, this
   /// function will trap before calling the closure.
   /// After the closure returns, the number of bytes initialized
   /// determines the number of `Element` instances added to `self`.
@@ -380,7 +380,7 @@ extension OutputSpan {
   /// until that point will remain initialized.
   ///
   /// - Parameters:
-  ///   - elementCount: The number of elements (of type `Element`) to initialize.
+  ///   - n: The number of elements (of type `Element`) to initialize.
   ///   - initializer: A closure that initializes new elements.
   ///     - Parameters:
   ///       - rawSpan: An `OutputRawSpan` with enough bytes to initialize
@@ -388,7 +388,7 @@ extension OutputSpan {
   @_alwaysEmitIntoClient
   @_lifetime(self: copy self)
   public mutating func append<E: Error>(
-    elementCount n: Int,
+    upTo n: Int,
     initializingWith initializer:
       (_ rawSpan: inout OutputRawSpan) throws(E) -> Void
   ) throws(E) where Element: ConvertibleFromBytes {
