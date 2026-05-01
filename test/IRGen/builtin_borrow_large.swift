@@ -1,6 +1,5 @@
-// RUN: %target-swift-frontend -enable-experimental-feature BorrowInout -enable-experimental-feature Lifetimes -O -disable-llvm-optzns -disable-availability-checking -emit-ir -module-name main %s | %FileCheck %s
+// RUN: %target-swift-frontend -enable-experimental-feature Lifetimes -O -disable-llvm-optzns -disable-availability-checking -emit-ir -module-name main %s | %FileCheck %s
 
-// REQUIRES: swift_feature_BorrowInout
 // REQUIRES: swift_feature_Lifetimes
 
 public struct BigPod { var a, b, c, d, e: Int }
