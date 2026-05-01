@@ -3460,9 +3460,19 @@ namespace {
 
       // The constraint solver may not have chosen legal casts.
       if (auto funcConv = dyn_cast<FunctionConversionExpr>(expr)) {
-        checkFunctionConversion(funcConv,
-                                funcConv->getSubExpr()->getType(),
+        auto *subExpr = funcConv->getSubExpr();
+
+        checkFunctionConversion(funcConv, subExpr->getType(),
                                 funcConv->getType());
+
+        // Closures are allowed to assume isolation from function conversion in
+        // some circumstances (currently only when it's
+        // `nonisolated(nonsending)`). If this happens, we can drop the
+        // conversion.
+        if (auto *closure = dyn_cast<AbstractClosureExpr>(subExpr)) {
+          if (funcConv->getType()->isEqual(closure->getType()))
+            return Action::Continue(closure);
+        }
       }
 
       if (auto *isolationErasure = dyn_cast<ActorIsolationErasureExpr>(expr)) {
