@@ -442,16 +442,15 @@ keyPath.test("optional force-unwrapping") {
   expectTrue(value.questionableCanary === newCanary)
 }
 
-#if !os(WASI)
-// Trap tests aren't available on WASI.
-keyPath.test("optional force-unwrapping trap") {
+keyPath.test("optional force-unwrapping trap")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.code {
   let origin_x = \TestOptional.origin!.x
   var value = TestOptional(origin: nil)
 
   expectCrashLater()
   _ = value[keyPath: origin_x]
 }
-#endif
 
 struct TestOptional2 {
   var optional: TestOptional?

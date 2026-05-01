@@ -126,8 +126,8 @@ UnsafeMutableRawPointerExtraTestSuite.test("load.unaligned")
   expectEqual(result, 0xffff_0000)
 }
 
-#if !os(WASI)
 UnsafeMutableRawPointerExtraTestSuite.test("load.invalid")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .code {
@@ -140,6 +140,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("load.invalid")
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("load.invalid.mutable")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .code {
@@ -150,7 +151,6 @@ UnsafeMutableRawPointerExtraTestSuite.test("load.invalid.mutable")
   }
   expectUnreachable()
 }
-#endif
 
 UnsafeMutableRawPointerExtraTestSuite.test("store.unaligned")
 .require(.stdlib_5_7)
@@ -178,8 +178,8 @@ UnsafeMutableRawPointerExtraTestSuite.test("store.unaligned")
               0)
 }
 
-#if !os(WASI)
 UnsafeMutableRawPointerExtraTestSuite.test("store.invalid")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .require(.stdlib_5_7)
@@ -195,7 +195,6 @@ UnsafeMutableRawPointerExtraTestSuite.test("store.invalid")
   p1.storeBytes(of: m, as: Missile.self)
   expectUnreachable()
 }
-#endif
 
 UnsafeMutableRawPointerExtraTestSuite.test("copyMemory") {
   let sizeInBytes = 4 * MemoryLayout<Int>.stride
@@ -303,9 +302,9 @@ func checkPtr(
   }
 }
 
-#if !os(WASI)
-// Trap tests aren't available on WASI.
-UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:") {
+UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.code {
   let check = checkPtr(UnsafeMutableRawPointer.initializeMemory(as:from:count:))
   check(Check.Disjoint)
   // This check relies on _debugPrecondition() so will only trigger in
@@ -316,7 +315,9 @@ UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:") {
   }
 }
 
-UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:.Right") {
+UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:.Right")
+.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.code {
   let check = checkPtr(UnsafeMutableRawPointer.initializeMemory(as:from:count:))
   // This check relies on _debugPrecondition() so will only trigger in
   // -Onone mode.
@@ -325,7 +326,6 @@ UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:.Righ
     check(Check.RightOverlap)
   }
 }
-#endif
 
 UnsafeMutableRawPointerExtraTestSuite.test("moveInitialize:from:") {
   let check =
