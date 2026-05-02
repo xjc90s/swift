@@ -875,7 +875,14 @@ ClangImporter::Implementation::lookupAndImportSubscripts(
     if (!subscript)
       continue;
 
-    // TODO: import attributes? The original impl doesn't seem to do this tho
+    // Import attributes from the Clang operator[] decl(s) onto the synthesized
+    // accessor thunks (importAttributes is a no-op on SubscriptDecl itself).
+    if (auto *getterAccessor = subscript->getAccessor(AccessorKind::Get);
+        getterAccessor && CXXGetter)
+      importAttributes(CXXGetter.method, getterAccessor);
+    if (auto *setterAccessor = subscript->getAccessor(AccessorKind::Set);
+        setterAccessor && CXXSetter)
+      importAttributes(CXXSetter.method, setterAccessor);
 
     Struct->addMember(subscript);
     result.push_back(subscript);

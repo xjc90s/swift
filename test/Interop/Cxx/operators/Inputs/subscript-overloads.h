@@ -84,4 +84,9 @@ public:
   /// GetValPtr returns a val vs ptr depending on this const-ness
   unsigned operator[](GetValPtr a) { return storage[a.index].val; }
   const unsigned *operator[](GetValPtr a) const { return &storage[a.index].val; }
+
+  /// Deprecated subscript
+  struct DeprecatedIndex { int index; };
+  __attribute__((deprecated("use GetVal instead")))
+  unsigned operator[](DeprecatedIndex d) const { return storage[d.index].val; }
 };

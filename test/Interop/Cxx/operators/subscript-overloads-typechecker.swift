@@ -119,3 +119,6 @@ let vGetValPtr: UnsafePointer<UInt32>? = v[getValPtr]
 v[getValPtr] = vGetValPtr // expected-error {{subscript is get-only}}
 let uGetValPtr: UnsafePointer<UInt32>? = u[getValPtr]
 u[getValPtr] = uGetValPtr // expected-error {{subscript is get-only}}
+
+let deprecatedIdx = Overloaded.DeprecatedIndex(index: 0)
+let _: CUnsignedInt = v[deprecatedIdx] // expected-warning {{deprecated: use GetVal instead}}
