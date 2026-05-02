@@ -74,7 +74,8 @@ TemporaryAllocationTestSuite.test("untypedEmptyAllocationIsStackAllocated") {
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeByteCount")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let byteCount = Int.random(in: -2 ..< -1)
     withUnsafeTemporaryAllocation(byteCount: byteCount, alignment: 1) { _ in }
@@ -82,7 +83,8 @@ TemporaryAllocationTestSuite.test("crashOnNegativeByteCount")
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeAlignment")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let alignment = Int.random(in: -2 ..< -1)
     withUnsafeTemporaryAllocation(byteCount: 16, alignment: alignment) { _ in }
@@ -176,7 +178,8 @@ TemporaryAllocationTestSuite.test("voidSpanIsStackAllocated") {
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeValueCount")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let capacity = Int.random(in: -2 ..< -1)
     withUnsafeTemporaryAllocation(of: Int.self, capacity: capacity) { _ in }
@@ -184,7 +187,8 @@ TemporaryAllocationTestSuite.test("crashOnNegativeValueCount")
 }
 
 TemporaryAllocationTestSuite.test("spanCrashOnNegativeValueCount")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let capacity = Int.random(in: -2 ..< -1)
     withTemporaryAllocation(of: Int.self, capacity: capacity) { _ in }
@@ -294,7 +298,8 @@ TemporaryAllocationTestSuite.test("rawSpanAppendAndByteCount") {
 }
 
 TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeByteCount")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let byteCount = Int.random(in: -2 ..< -1)
     withTemporaryAllocation(byteCount: byteCount, alignment: 1) { _ in }
@@ -302,7 +307,8 @@ TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeByteCount")
 }
 
 TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeAlignment")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI.")).code {
+.requireCapability(.crashTesting)
+.code {
   expectCrash {
     let alignment = Int.random(in: -2 ..< -1)
     withTemporaryAllocation(byteCount: 16, alignment: alignment) { _ in }

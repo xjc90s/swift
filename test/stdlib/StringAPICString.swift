@@ -242,7 +242,7 @@ CStringTests.test("String.cString.with.Array.UInt8.input") {
 }
 
 CStringTests.test("String.cString.with.Array.UInt8.input/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   expectCrashLater(
@@ -271,7 +271,7 @@ CStringTests.test("String.cString.with.Array.CChar.input") {
 }
 
 CStringTests.test("String.cString.with.Array.CChar.input/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   expectCrashLater(
@@ -304,7 +304,7 @@ CStringTests.test("String.cString.with.inout.UInt8.conversion") {
 }
 
 CStringTests.test("String.cString.with.inout.UInt8.conversion/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   var c: UInt8 = 100
@@ -324,7 +324,7 @@ CStringTests.test("String.cString.with.inout.CChar.conversion") {
 }
 
 CStringTests.test("String.cString.with.inout.CChar.conversion/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   var c: CChar = 100
@@ -355,7 +355,7 @@ CStringTests.test("String.validatingCString.with.Array.input") {
 }
 
 CStringTests.test("String.validatingCString.with.Array.input/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   expectCrashLater(
@@ -391,7 +391,7 @@ CStringTests.test("String.validatingCString.with.inout.conversion") {
 }
 
 CStringTests.test("String.validatingCString.with.inout.conversion/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   var c: CChar = 100
@@ -423,7 +423,7 @@ CStringTests.test("String.decodeCString.with.Array.input") {
 }
 
 CStringTests.test("String.decodeCString.with.Array.input/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   expectCrashLater(
@@ -466,7 +466,7 @@ CStringTests.test("String.decodeCString.with.inout.conversion") {
 }
 
 CStringTests.test("String.decodeCString.with.inout.conversion/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   var c: Unicode.UTF8.CodeUnit = 100
@@ -496,7 +496,7 @@ CStringTests.test("String.init.decodingCString.with.Array.input") {
 }
 
 CStringTests.test("String.init.decodingCString.with.Array.input/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   expectCrashLater(
@@ -529,7 +529,7 @@ CStringTests.test("String.init.decodingCString.with.inout.conversion") {
 }
 
 CStringTests.test("String.init.decodingCString.with.inout.conversion/trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   guard #available(SwiftStdlib 5.7, *) else { return }
   var c: Unicode.UTF8.CodeUnit = 100

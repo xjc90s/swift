@@ -102,7 +102,7 @@ struct TestStaticVar {
       }
 
       tests.test("precondition on actor (main): wrongly assume the main executor, from actor on other executor")
-      .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+      .requireCapability(.crashTesting)
       .code {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected 'MainActor' executor.")
         await Someone().callCheckMainActor()

@@ -31,7 +31,7 @@ if #available(SwiftStdlib 5.7, *) {
   }
 
   suite.test("seconds from Double, overflow")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .code {
     let huge: Double = 1.7e20
     let duration = Duration.seconds(huge)
@@ -175,7 +175,7 @@ if #available(SwiftStdlib 6.0, *) {
   }
 
   suite.test("seconds from Int128, overflow")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .code {
     expectCrashLater()
     let _ = Duration.seconds( 170141183460469231732 as Int128)
@@ -197,7 +197,7 @@ if #available(SwiftStdlib 6.0, *) {
   }
 
   suite.test("milliseconds from Int128, overflow")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .code {
     expectCrashLater()
     let _ = Duration.milliseconds( 170141183460469231731689 as Int128)
@@ -219,7 +219,7 @@ if #available(SwiftStdlib 6.0, *) {
   }
 
   suite.test("microseconds from Int128, overflow")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .code {
     expectCrashLater()
     let _ = Duration.microseconds( 170141183460469231731687304 as Int128)
@@ -241,7 +241,7 @@ if #available(SwiftStdlib 6.0, *) {
   }
 
   suite.test("nanoseconds from Int128, overflow")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .code {
     expectCrashLater()
     let _ = Duration.nanoseconds( 170141183460469231731687303716 as Int128)

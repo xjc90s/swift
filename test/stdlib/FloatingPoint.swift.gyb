@@ -335,7 +335,7 @@ FloatingPoint.test("Float/Int16") {
 }
 
 FloatingPoint.test("Float/UInt32")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(UInt32.min, UInt32(Float(UInt32.min)))
   expectCrashLater()
@@ -343,7 +343,7 @@ FloatingPoint.test("Float/UInt32")
 }
 
 FloatingPoint.test("Float/Int32")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(Int32.min, Int32(Float(Int32.min)))
   expectCrashLater()
@@ -351,7 +351,7 @@ FloatingPoint.test("Float/Int32")
 }
 
 FloatingPoint.test("Float/UInt64")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(UInt64.min, UInt64(Float(UInt64.min)))
   expectCrashLater()
@@ -359,7 +359,7 @@ FloatingPoint.test("Float/UInt64")
 }
 
 FloatingPoint.test("Float/Int64")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(Int64.min, Int64(Float(Int64.min)))
   expectCrashLater()
@@ -431,7 +431,7 @@ FloatingPoint.test("Double/Int32") {
 }
 
 FloatingPoint.test("Double/UInt64")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(UInt64.min, UInt64(Double(UInt64.min)))
   expectCrashLater()
@@ -439,7 +439,7 @@ FloatingPoint.test("Double/UInt64")
 }
 
 FloatingPoint.test("Double/Int64")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   expectEqual(Int64.min, Int64(Double(Int64.min)))
   expectCrashLater()
@@ -1193,7 +1193,7 @@ FloatingPoint.test("Float32/quietNaN") {
 }
 
 FloatingPoint.test("Float32/quietNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // Payload overflow
   expectCrashLater()
@@ -1225,7 +1225,7 @@ FloatingPoint.test("Float64/quietNaN") {
 }
 
 FloatingPoint.test("Float64/quietNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // Payload overflow
   expectCrashLater()
@@ -1259,7 +1259,7 @@ FloatingPoint.test("Float80/quietNaN") {
 }
 
 FloatingPoint.test("Float80/quietNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // Payload overflow
   expectCrashLater()
@@ -1295,7 +1295,7 @@ FloatingPoint.test("Float32/signalingNaN") {
 }
 
 FloatingPoint.test("Float32/signalingNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // payload overflow
   expectCrashLater()
@@ -1327,7 +1327,7 @@ FloatingPoint.test("Float64/signalingNaN") {
 }
 
 FloatingPoint.test("Float64/signalingNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // payload overflow
   expectCrashLater()
@@ -1363,7 +1363,7 @@ FloatingPoint.test("Float80/signalingNaN") {
 }
 
 FloatingPoint.test("Float80/signalingNaN overflow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   // payload overflow
   expectCrashLater()

@@ -343,13 +343,13 @@ OptionalTests.test("Casting Optional") {
 }
 
 OptionalTests.test("Casting Optional Traps")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let nx: C? = nil
   expectCrash { _blackHole(anyToAny(nx, Int.self)) }
 }
 OptionalTests.test("Casting Optional Any Traps")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let nx: X? = X()
   expectCrash { _blackHole(anyToAny(nx as Any, Optional<Int>.self)) }
@@ -416,7 +416,7 @@ OptionalTests.test("unsafelyUnwrapped") {
 }
 
 OptionalTests.test("unsafelyUnwrapped nil")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .xfail(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "assertions are disabled in Release and Unchecked mode"))

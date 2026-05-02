@@ -127,7 +127,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("load.unaligned")
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("load.invalid")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .code {
@@ -140,7 +140,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("load.invalid")
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("load.invalid.mutable")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .code {
@@ -179,7 +179,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("store.unaligned")
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("store.invalid")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .skip(.custom({ !_isDebugAssertConfiguration() },
               reason: "This tests a debug precondition.."))
 .require(.stdlib_5_7)
@@ -303,7 +303,7 @@ func checkPtr(
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let check = checkPtr(UnsafeMutableRawPointer.initializeMemory(as:from:count:))
   check(Check.Disjoint)
@@ -316,7 +316,7 @@ UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:")
 }
 
 UnsafeMutableRawPointerExtraTestSuite.test("initializeMemory:as:from:count:.Right")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let check = checkPtr(UnsafeMutableRawPointer.initializeMemory(as:from:count:))
   // This check relies on _debugPrecondition() so will only trigger in

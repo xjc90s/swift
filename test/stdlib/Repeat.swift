@@ -24,7 +24,7 @@ RepeatTests.test("associated-types") {
 }
 
 RepeatTests.test("out-of-bounds")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let sequence = repeatElement(0, count: 1)
   expectCrashLater()

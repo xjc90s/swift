@@ -108,7 +108,7 @@ tests.test("${Self}/success") {
 }
 
 tests.test("${Self}/radixTooLow")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   ${Self}("0", radix: 2)
   expectCrashLater()
@@ -116,7 +116,7 @@ tests.test("${Self}/radixTooLow")
 }
 
 tests.test("${Self}/radixTooHigh")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let maxRadix = ${ord('z') - ord('a') + 1 + 10}
   ${Self}("0", radix: maxRadix)

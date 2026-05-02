@@ -443,7 +443,7 @@ keyPath.test("optional force-unwrapping") {
 }
 
 keyPath.test("optional force-unwrapping trap")
-.skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+.requireCapability(.crashTesting)
 .code {
   let origin_x = \TestOptional.origin!.x
   var value = TestOptional(origin: nil)

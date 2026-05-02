@@ -360,7 +360,7 @@ UnicodeScalarTests.test("UInt8(ascii: UnicodeScalar)") {
 }
 
 UnicodeScalarTests.test("UInt8(ascii: UnicodeScalar)/non-ASCII should trap")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))

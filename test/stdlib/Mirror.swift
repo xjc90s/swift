@@ -1027,7 +1027,7 @@ mirrors.test("Addressing") {
 }
 
 mirrors.test("Invalid Path Type")
-  .skip(.wasiAny(reason: "Trap tests aren't supported on WASI."))
+  .requireCapability(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))
