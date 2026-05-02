@@ -4989,6 +4989,15 @@ ActorIsolationChecker::determineClosureIsolation(AbstractClosureExpr *closure,
       return !inheritsParentIsolation;
     };
 
+    auto isConvertedToNonisolatedNonsending = [&context]() {
+      if (auto *fce = dyn_cast_or_null<FunctionConversionExpr>(context)) {
+        auto expectedIsolation =
+            fce->getType()->castTo<FunctionType>()->getIsolation();
+        return expectedIsolation.isNonisolatedNonsending();
+      }
+      return false;
+    };
+
     // The solver has to be conservative and produce a conversion to
     // `nonisolated(nonsending)` because at solution application time
     // we don't yet know whether there are any captures which would
@@ -4996,14 +5005,18 @@ ActorIsolationChecker::determineClosureIsolation(AbstractClosureExpr *closure,
     //
     // At this point we know that closure is not explicitly annotated with
     // global actor, nonisolated/@concurrent attributes and doesn't have
-    // isolated parameters. If our closure is nonisolated and we have a
-    // conversion to nonisolated(nonsending), then we should respect that.
-    if (canAssumeNonisolatedNonsending()) {
-      if (auto *fce = dyn_cast_or_null<FunctionConversionExpr>(context)) {
-        auto expectedIsolation =
-            fce->getType()->castTo<FunctionType>()->getIsolation();
-        if (expectedIsolation.isNonisolatedNonsending())
-          return ActorIsolation::forNonisolatedNonsending();
+    // isolated parameters.
+    if (isConvertedToNonisolatedNonsending()) {
+      if (canAssumeNonisolatedNonsending())
+        return ActorIsolation::forNonisolatedNonsending();
+
+      // If `nonisolated(nonsending)` cannot be assumed, let's see if it's
+      // because closure doesn't leave parent isolation and we prefer statically
+      // known isolation over dynamic one.
+      if (auto *explicitClosure = dyn_cast<ClosureExpr>(closure)) {
+        if (explicitClosure->isPassedToNonisolatedNonsendingCall() &&
+            inheritsParentIsolation)
+          explicitClosure->setBehavesLikeNonisolatedNonsending();
       }
     }
 
