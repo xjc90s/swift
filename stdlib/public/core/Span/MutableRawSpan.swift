@@ -486,7 +486,7 @@ extension MutableRawSpan {
   @_alwaysEmitIntoClient
   public func load<T: ConvertibleFromBytes>(
     fromByteOffset offset: Int,
-    as: T.Type
+    as type: T.Type
   ) -> T {
     unsafe unsafeLoadUnaligned(fromByteOffset: offset, as: T.self)
   }
@@ -507,7 +507,7 @@ extension MutableRawSpan {
   @available(SwiftStdlib 6.4, *)
   public func load<T: ConvertibleFromBytes & FixedWidthInteger>(
     fromByteOffset offset: Int,
-    as: T.Type,
+    as type: T.Type,
     _ byteOrder: ByteOrder
   ) -> T {
     let rawValue = load(fromByteOffset: offset, as: T.self)
