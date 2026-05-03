@@ -15,8 +15,8 @@ func makeBigArc() -> BigArc
 // CHECK-LABEL: define {{.*}} @"$s{{.*}}12borrowBigPod
 // CHECK:         ret ptr %0
 @_lifetime(borrow target)
-public func borrowBigPod(_ target: BigPod) -> Borrow<BigPod> {
-	return Borrow(target)
+public func borrowBigPod(_ target: BigPod) -> Ref<BigPod> {
+	return Ref(target)
 }
 
 // CHECK-LABEL: define {{.*}} @"$s{{.*}}12borrowBigArc
@@ -26,23 +26,23 @@ public func borrowBigPod(_ target: BigPod) -> Borrow<BigPod> {
 // CHECK:         [[RESULT:%.*]] = load ptr, ptr [[TMP]]
 // CHECK:         ret ptr [[RESULT]]
 @_lifetime(borrow target)
-public func borrowBigArc(_ target: BigArc) -> Borrow<BigArc> {
-	return Borrow(target)
+public func borrowBigArc(_ target: BigArc) -> Ref<BigArc> {
+	return Ref(target)
 }
 
 @_silgen_name("takeBorrowBigPod")
-func takeBorrowBigPod(_: Borrow<BigPod>)
+func takeBorrowBigPod(_: Ref<BigPod>)
 
 // CHECK-LABEL: define {{.*}} @"$s{{.*}}17borrowBigPodLocal
 // CHECK:         call {{.*}} @makeBigPod(ptr noalias sret(%T4main6BigPodV) captures(none) [[LOCAL_POD:%.*]])
 // CHECK:         call {{.*}} @takeBorrowBigPod(ptr [[LOCAL_POD]])
 public func borrowBigPodLocal() {
 	let target = makeBigPod()
-	takeBorrowBigPod(Borrow(target))
+	takeBorrowBigPod(Ref(target))
 }
 
 // CHECK-LABEL: define {{.*}} @"$s{{.*}}11derefBigPod
-public func derefBigPod(_ borrow: Borrow<BigPod>) -> BigPod {
+public func derefBigPod(_ borrow: Ref<BigPod>) -> BigPod {
 	// CHECK:     store ptr %1, ptr [[TMP:%.*]], align
 	// CHECK:     [[BORROW:%.*]] = load ptr, ptr [[TMP]]
 	// copying the value from the borrow target to the return buffer:
@@ -55,6 +55,6 @@ public func derefBigPod(_ borrow: Borrow<BigPod>) -> BigPod {
 	return borrow.value
 }
 
-public func derefBigArc(_ borrow: Borrow<BigArc>) -> BigArc {
+public func derefBigArc(_ borrow: Ref<BigArc>) -> BigArc {
 	return borrow.value
 }
