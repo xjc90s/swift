@@ -3299,6 +3299,18 @@ static bool canEmitSpecializedClosureFunction(const AbstractClosureExpr *closure
                                         const FunctionTypeInfo &contextInfo) {
   auto destType = contextInfo.FormalType;
 
+  // This is a closure that is being converted to `nonisolated(nonsending)`
+  // type and is already behaves as such even though its statically known
+  // isolation is different. Such closures are emitted in a special way where
+  // they gain an implicit isolation parameter that gets ignored to avoid
+  // unnecessary hops.
+  if (contextInfo.ExpectedLoweredType->hasNonisolatedNonsendingIsolation()) {
+    if (auto *explicitClosure = dyn_cast<ClosureExpr>(closure)) {
+      if (explicitClosure->behavesLikeNonisolatedNonsending())
+        return true;
+    }
+  }
+
   // Require the closure's formal type to be closely related to the formal
   // type we're trying to convert it to.
   if (!canEmitClosureFunctionUnderConversion(closureType, destType))
