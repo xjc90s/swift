@@ -112,9 +112,9 @@
 /include/swift/SIL/SILProfiler.h                   @hamishknight @rintaro
 /include/swift/SILOptimizer/                       @eeckstein
 /include/swift/SILOptimizer/Utils/Distributed*     @ktoso
-/include/swift/Sema/                               @hborla @slavapestov @xedin
-/include/swift/Sema/CS*                            @hborla @xedin
-/include/swift/Sema/Constraint*                    @hborla @xedin
+/include/swift/Sema/                               @hborla @slavapestov @xedin @hamishknight @kathygray-pl
+/include/swift/Sema/CS*                            @hborla @xedin @hamishknight @kathygray-pl
+/include/swift/Sema/Constraint*                    @hborla @xedin @hamishknight @kathygray-pl
 /include/swift/Serialization/SerializedModuleLoader* @artemcm
 /include/swift/SwiftRemoteMirror/                  @slavapestov
 /include/swift/SymbolGraphGen/                     @QuietMisdreavus
@@ -185,7 +185,7 @@
 /lib/Sema/PreCheckTarget.cpp                        @hborla @slavapestov @xedin @hamishknight @kathygray-pl
 /lib/Sema/TypeCheckDistributed*                     @hborla @ktoso @xedin
 /lib/Sema/TypeCheckProtocol*                        @AnthonyLatsis @hborla @slavapestov
-/lib/Sema/TypeCheckType*                            @AnthonyLatsis @hborla @slavapestov @xedin
+/lib/Sema/TypeCheckType*                            @AnthonyLatsis @hborla @slavapestov @xedin @hamishknight
 /lib/Serialization/SerializedModuleLoader*          @artemcm
 /lib/SwiftRemoteMirror/                             @slavapestov
 /lib/SymbolGraphGen                                 @QuietMisdreavus
@@ -325,5 +325,5 @@
 /validation-test/SIL/                     @jckarter
 /validation-test/SILGen/                  @jckarter
 /validation-test/SILOptimizer/            @eeckstein
-/validation-test/Sema/                    @hborla @slavapestov @xedin
+/validation-test/Sema/                    @hborla @slavapestov @xedin @hamishknight
 /validation-test/stdlib/                  @swiftlang/standard-librarians
