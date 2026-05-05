@@ -450,9 +450,6 @@ namespace swift {
     bool EnableDeserializationSafety =
       ::getenv("SWIFT_ENABLE_DESERIALIZATION_SAFETY");
 
-    /// Disable injecting deserializes module paths into the explict module map.
-    bool DisableDeserializationOfExplicitPaths = false;
-
     /// Attempt to recover for imported modules with broken modularization
     /// in an unsafe way. Currently applies only to xrefs where the target
     /// decl moved to a different module that is already loaded.
@@ -933,6 +930,20 @@ namespace swift {
     ///
     /// Intended for debugging purposes only.
     unsigned WarnLongExpressionTypeChecking = 0;
+
+    /// If non-zero, warn when type-checking an expression uses more than
+    /// this many solver scopes.
+    ///
+    /// Intended for debugging purposes only. Unlike WarnLongExpressionTypeChecking,
+    /// this threshold is deterministic across machines.
+    unsigned WarnLongExpressionTypeCheckingScopes = 0;
+
+    /// If non-zero, warn when type-checking an expression uses more than
+    /// this many solver trail steps.
+    ///
+    /// Intended for debugging purposes only. Unlike WarnLongExpressionTypeChecking,
+    /// this threshold is deterministic across machines.
+    unsigned WarnLongExpressionTypeCheckingTrail = 0;
 
     /// If non-zero, abort the expression type checker if it takes more
     /// than this many seconds.
