@@ -1884,10 +1884,12 @@ swift_task_createNullaryContinuationJobImpl(
   return job;
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 SWIFT_CC(swift)
 void swift::swift_continuation_logFailedCheck(const char *message) {
   swift_reportError(0, message);
 }
+#endif
 
 // This has moved; the implementation is now in the executor; the declaration
 // needs to be here because unlike other things implemented by the executor,

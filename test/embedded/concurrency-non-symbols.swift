@@ -8,4 +8,4 @@
 
 // CHECK-NOT: swift_reportToDebugger
 // CHECK-NOT: swift_shouldReportFatalErrorsToDebugger
-
+// CHECK-NOT: swift_reportError
