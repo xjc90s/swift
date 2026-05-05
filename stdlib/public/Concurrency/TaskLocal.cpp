@@ -285,6 +285,7 @@ void TaskLocal::ValueItem::copyTo(AsyncTask *target) {
   target->_private().Local.head = item;
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 // =============================================================================
 // ==== checks -----------------------------------------------------------------
 
@@ -373,6 +374,7 @@ static void swift_task_reportIllegalTaskLocalBindingWithinWithTaskGroupImpl(
   free(message);
   abort();
 }
+#endif
 
 // =============================================================================
 // ==== destroy ----------------------------------------------------------------
