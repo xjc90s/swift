@@ -6,6 +6,9 @@ nonisolated(nonsending) func withValue(_ fn: nonisolated(nonsending) () async ->
 nonisolated(nonsending) func withValueWithArgument<T>(_ fn: nonisolated(nonsending) (T) async throws -> Void) async {
 }
 
+nonisolated(nonsending) func withValueGeneric<R>(_ fn: nonisolated(nonsending) () async throws -> R?) async throws {
+}
+
 func asyncTest(_ body: () async -> Void) async {
 }
 
@@ -201,3 +204,24 @@ func testDynamicIsolation(isolation: isolated (any Actor)?, body: () async -> Vo
     try await dynamicIsolation(isolation: isolation, body)
   }
 }
+
+func testReabstraction(body: () async -> Void) async throws {
+  // CHECK: // closure #1 in testReabstraction(body:)
+  // CHECK: // Isolation: @concurrent
+  // CHECK: sil private @$s37nonisolated_nonsending_specialization17testReabstraction4bodyyyyYaXE_tYaKFyyYaKXEfU_ : $@convention(thin) @async (@sil_implicit_leading_param @guaranteed Builtin.ImplicitActor, @guaranteed @noescape @async @callee_guaranteed () -> ()) -> @error any Error {
+  // CHECK-NOT: hop_to_executor {{.*}}
+  // CHECK: } // end sil function '$s37nonisolated_nonsending_specialization17testReabstraction4bodyyyyYaXE_tYaKFyyYaKXEfU_'
+  try await withValueGeneric {
+    _ = 42
+    try await throwingTest(body)
+  }
+}
+
+// Reabstraction thunk for `testReabstraction` closure
+//
+// CHECK: // thunk for @caller_isolated @callee_guaranteed @async (@guaranteed Builtin.ImplicitActor) -> (@error @owned Error)
+// CHECK: sil shared [transparent] [reabstraction_thunk] @$sBAs5Error_pINgHgILzo_BAytSgsAA_pIeNgHgILrzo_TR : $@convention(thin) @caller_isolated @async (@sil_isolated @sil_implicit_leading_param @guaranteed Builtin.ImplicitActor, @guaranteed @caller_isolated @noescape @async @callee_guaranteed (@sil_isolated @sil_implicit_leading_param @guaranteed Builtin.ImplicitActor) -> @error any Error) -> (@out Optional<()>, @error any Error) {
+// CHECK: bb0(%0 : $*Optional<()>, [[ISOLATION:%.*]] : $Builtin.ImplicitActor, [[CLOSURE:%.*]] : $@caller_isolated @noescape @async @callee_guaranteed (@sil_isolated @sil_implicit_leading_param @guaranteed Builtin.ImplicitActor) -> @error any Error):
+// CHECK:   hop_to_executor [[ISOLATION]]
+// CHECK:   try_apply [[CLOSURE]]([[ISOLATION]]) : $@caller_isolated @noescape @async @callee_guaranteed (@sil_isolated @sil_implicit_leading_param @guaranteed Builtin.ImplicitActor) -> @error any Error, normal bb1, error bb2
+// CHECK: } // end sil function '$sBAs5Error_pINgHgILzo_BAytSgsAA_pIeNgHgILrzo_TR'
