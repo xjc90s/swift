@@ -39,6 +39,14 @@
 #define SWIFT_FATAL_ERROR swift_Concurrency_fatalError
 #include "../runtime/StackAllocator.h"
 
+// In embedded builds, pure virtual methods are replaced with
+// __builtin_unreachable() stubs to avoid pulling in __cxa_pure_virtual.
+#if SWIFT_CONCURRENCY_EMBEDDED
+#define SWIFT_CONCURRENCY_ABSTRACT(decl) decl { __builtin_unreachable(); }
+#else
+#define SWIFT_CONCURRENCY_ABSTRACT(decl) decl = 0
+#endif
+
 namespace swift {
 
 // Set to 1 to enable helpful debug spew to stderr

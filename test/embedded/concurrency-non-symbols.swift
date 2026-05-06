@@ -17,6 +17,7 @@
 // CHECK-NOT: vsnprintf
 // CHECK-NOT: malloc
 // CHECK-NOT: free
+// CHECK-NOT: __cxa_pure_virtual
 
 // CHECK-DAG: swift_fatalError
 // CHECK-DAG: swift_slowAlloc

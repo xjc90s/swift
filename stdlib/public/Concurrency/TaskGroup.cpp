@@ -359,12 +359,12 @@ public:
   }
 
   /// Destroy the storage associated with the group.
-  virtual void destroy() = 0;
+  SWIFT_CONCURRENCY_ABSTRACT(virtual void destroy());
 
   bool isAccumulatingResults() const {
     return !isDiscardingResults();
   }
-  virtual bool isDiscardingResults() const = 0;
+  SWIFT_CONCURRENCY_ABSTRACT(virtual bool isDiscardingResults() const);
 
   /// Any TaskGroup always IS its own TaskRecord.
   /// This allows us to easily get the group while cancellation is propagated throughout the task tree.
@@ -379,7 +379,7 @@ public:
   /// If possible, and an existing task is already waiting on next(), this will
   /// schedule it immediately. If not, the result is enqueued and will be picked
   /// up whenever a task calls next() the next time.
-  virtual void offer(AsyncTask *completed, AsyncContext *context) = 0;
+  SWIFT_CONCURRENCY_ABSTRACT(virtual void offer(AsyncTask *completed, AsyncContext *context));
 
   /// Attempt to park the `waitingTask` in the waiting queue.
   ///
@@ -405,7 +405,7 @@ public:
                      AsyncContext *rawContext);
 
   // Enqueue the completed task onto ready queue if there are no waiting tasks yet
-  virtual void enqueueCompletedTask(AsyncTask *completedTask, bool hadErrorResult) = 0;
+  SWIFT_CONCURRENCY_ABSTRACT(virtual void enqueueCompletedTask(AsyncTask *completedTask, bool hadErrorResult));
 
   /// Resume waiting task with result from `completedTask`
   PreparedWaitingTask prepareWaitingTaskWithTask(AsyncTask *waitingTask,
