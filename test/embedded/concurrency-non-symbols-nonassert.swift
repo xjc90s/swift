@@ -3,6 +3,7 @@
 // REQUIRES: swift_in_compiler
 // REQUIRES: swift_feature_Embedded
 // REQUIRES: swift_stdlib_no_asserts
+// REQUIRES: no_asserts
 // REQUIRES: optimized_stdlib
 
 // Check for symbols that we explicitly don't want in the Embedded Swift
