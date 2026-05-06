@@ -11,6 +11,10 @@
 // CHECK-NOT: swift_reportError
 // CHECK-NOT: getResilientMetadataBounds
 // CHECK-NOT: abort
+// CHECK-NOT: puts
+// CHECK-NOT: strlen
+// CHECK-NOT: strncpy
+// CHECK-NOT: vprintf
+// CHECK-NOT: vsnprintf
 
 // CHECK-DAG: swift_fatalError
-

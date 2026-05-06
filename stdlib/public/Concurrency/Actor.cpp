@@ -424,6 +424,7 @@ __swift_bincompat_useLegacyNonCrashingExecutorChecks() {
   return options;
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 // Shimming call to Swift runtime because Swift Embedded does not have
 // these symbols defined.
 const char *__swift_runtime_env_useLegacyNonCrashingExecutorChecks() {
@@ -435,6 +436,7 @@ const char *__swift_runtime_env_useLegacyNonCrashingExecutorChecks() {
   return nullptr;
 #endif
 }
+#endif
 
 // Determine the default effective executor checking mode, and apply environment
 // variable overrides of the executor checking mode.
@@ -448,6 +450,7 @@ swift_task_is_current_executor_flag swift_bincompat_selectDefaultIsCurrentExecut
   swift_task_is_current_executor_flag options =
       __swift_bincompat_useLegacyNonCrashingExecutorChecks();
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
   // Potentially, override the platform detected mode, primarily used in tests.
   if (const char *modeStr =
           __swift_runtime_env_useLegacyNonCrashingExecutorChecks()) {
@@ -469,6 +472,7 @@ swift_task_is_current_executor_flag swift_bincompat_selectDefaultIsCurrentExecut
         options | swift_task_is_current_executor_flag::Assert);
     } // else, just use the platform detected mode
   } // no override, use the default mode
+#endif
 
   return options;
 }
@@ -738,6 +742,7 @@ swift_task_isCurrentExecutorImpl(SerialExecutorRef expectedExecutor) {
                                                isCurrentExecutorFlag);
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 /// Logging level for unexpected executors:
 /// 0 - no logging -- will be IGNORED when Swift6 mode of isCurrentExecutor is used
 /// 1 - warn on each instance -- will be IGNORED when Swift6 mode of isCurrentExecutor is used
@@ -782,11 +787,13 @@ static void checkUnexpectedExecutorLogLevel(void *context) {
   }
 #endif // SWIFT_STDLIB_HAS_ENVIRON
 }
+#endif
 
 SWIFT_CC(swift)
 void swift::swift_task_reportUnexpectedExecutor(
     const unsigned char *file, uintptr_t fileLength, bool fileIsASCII,
     uintptr_t line, SerialExecutorRef executor) {
+#if !SWIFT_CONCURRENCY_EMBEDDED
   SWIFT_TASK_DEBUG_LOG("CHECKING swift_task_reportUnexpectedExecutor %s", "");
   // Make sure we have an appropriate log level.
   static swift::once_t logLevelToken;
@@ -823,7 +830,6 @@ void swift::swift_task_reportUnexpectedExecutor(
       isFatalError ? "error" : "warning", functionIsolation,
       (int)fileLength, file, (int)line, whereExpected);
 
-#if !SWIFT_CONCURRENCY_EMBEDDED
   if (_swift_shouldReportFatalErrorsToDebugger()) {
     RuntimeErrorDetails details = {
         .version = RuntimeErrorDetails::currentVersion,
@@ -842,16 +848,13 @@ void swift::swift_task_reportUnexpectedExecutor(
         isFatalError ? RuntimeErrorFlagFatal : RuntimeErrorFlagNone, message,
         &details);
   }
-#endif
 
-#if defined(_WIN32) && !SWIFT_CONCURRENCY_EMBEDDED
+#if defined(_WIN32)
 #define STDERR_FILENO 2
   _write(STDERR_FILENO, message, strlen(message));
-#elif !SWIFT_CONCURRENCY_EMBEDDED
+#else
   fputs(message, stderr);
   fflush(stderr);
-#else
-  puts(message);
 #endif
 #if SWIFT_STDLIB_HAS_ASL
 #pragma clang diagnostic push
@@ -866,6 +869,9 @@ void swift::swift_task_reportUnexpectedExecutor(
 
   if (isFatalError)
     abort();
+#else
+  swift_Concurrency_fatalError(0, "running on unexpected executor");
+#endif
 }
 
 /*****************************************************************************/
