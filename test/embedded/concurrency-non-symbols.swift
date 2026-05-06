@@ -10,3 +10,7 @@
 // CHECK-NOT: swift_shouldReportFatalErrorsToDebugger
 // CHECK-NOT: swift_reportError
 // CHECK-NOT: getResilientMetadataBounds
+// CHECK-NOT: abort
+
+// CHECK-DAG: swift_fatalError
+

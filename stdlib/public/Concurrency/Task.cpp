@@ -1985,7 +1985,7 @@ SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_END
       swift_##name##_hook(COMPATIBILITY_UNPAREN_WITH_COMMA(namedArgs)          \
                               swift_##name##Impl,                              \
                           Override);                                           \
-      abort();                                                                 \
+      swift_unreachable("returned from noreturn hook");                        \
     }                                                                          \
     if (Override != nullptr)                                                   \
       Override(COMPATIBILITY_UNPAREN_WITH_COMMA(namedArgs)                     \
@@ -2001,7 +2001,7 @@ SWIFT_ALLOWED_RUNTIME_GLOBAL_CTOR_END
   attrs ccAttrs void namespace swift_##name COMPATIBILITY_PAREN(typedArgs) {   \
     if (swift_##name##_hook) {                                                 \
       swift_##name##_hook(swift_##name##Impl, nullptr);                        \
-      abort();                                                                 \
+      swift_unreachable("returned from noreturn hook");                        \
     }                                                                          \
     swift_##name##Impl COMPATIBILITY_PAREN(namedArgs);                         \
   }

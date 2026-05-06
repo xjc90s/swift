@@ -590,19 +590,18 @@ struct TaskGroupStatus {
   }
 
   static void reportPendingTaskOverflow(TaskGroupBase* group, TaskGroupStatus status) {
+#if SWIFT_CONCURRENCY_EMBEDDED
+    // For Embedded Swift, don't burn code size on providing details.
+    swift_Concurrency_fatalError(0, "TaskGroup: pending task count overflow");
+#else
     char *message;
     swift_asprintf(
         &message,
         "error: %sTaskGroup: detected pending task count overflow, in task group %p! Status: %s",
         group->isDiscardingResults() ? "Discarding" : "", group,
-#if !SWIFT_CONCURRENCY_EMBEDDED
         status.to_string(group).c_str()
-#else
-        "<status unavailable in embedded>"
-#endif
-                   );
+    );
 
-#if !SWIFT_CONCURRENCY_EMBEDDED
     if (_swift_shouldReportFatalErrorsToDebugger()) {
       RuntimeErrorDetails details = {
           .version = RuntimeErrorDetails::currentVersion,
@@ -619,12 +618,11 @@ struct TaskGroupStatus {
       };
       _swift_reportToDebugger(RuntimeErrorFlagFatal, message, &details);
     }
-#endif
 
-#if defined(_WIN32) && !SWIFT_CONCURRENCY_EMBEDDED
+#if defined(_WIN32)
     #define STDERR_FILENO 2
    _write(STDERR_FILENO, message, strlen(message));
-#elif defined(STDERR_FILENO) && !SWIFT_CONCURRENCY_EMBEDDED
+#elif defined(STDERR_FILENO)
     write(STDERR_FILENO, message, strlen(message));
 #else
     puts(message);
@@ -640,6 +638,7 @@ struct TaskGroupStatus {
 
     free(message);
     abort();
+#endif
   }
 
 #if !SWIFT_CONCURRENCY_EMBEDDED
