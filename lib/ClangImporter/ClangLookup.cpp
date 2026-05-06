@@ -617,7 +617,7 @@ ClangImporter::Implementation::lookupAndImportPointeeAndOperatorStar(
   auto overloads =
       filterMethodOverloads(R.value(), CXXRecord, /*withTemplates=*/false);
 
-  for (auto overload : overloads) {
+  for (const auto &overload : overloads) {
     if (overload.method->isStatic() || overload.method->isVolatile() ||
         overload.method->getMinRequiredArguments() != 0 ||
         overload.method->getRefQualifier() == clang::RQ_RValue)
@@ -709,7 +709,7 @@ FuncDecl *ClangImporter::Implementation::lookupAndImportSuccessor(
 
   CXXOverload CXXMethod;
 
-  for (auto overload : overloads) {
+  for (const auto &overload : overloads) {
     if (overload.method->isStatic() || overload.method->isVolatile() ||
         overload.method->getRefQualifier() == clang::RQ_RValue ||
         overload.method->getMinRequiredArguments() != 0)
@@ -785,7 +785,7 @@ ClangImporter::Implementation::lookupAndImportSubscripts(
 
   auto overloads =
       filterMethodOverloads(R.value(), CXXRecord, /*withTemplates=*/true);
-  for (auto overload : overloads) {
+  for (const auto &overload : overloads) {
     if (overload.method->isVolatile() ||
         overload.method->getRefQualifier() == clang::RQ_RValue)
       continue;
