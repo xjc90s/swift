@@ -1487,9 +1487,11 @@ static DefaultActor *asAbstract(DefaultActorImpl *actor) {
   return reinterpret_cast<DefaultActor*>(actor);
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 static NonDefaultDistributedActorImpl *asImpl(NonDefaultDistributedActor *actor) {
   return reinterpret_cast<NonDefaultDistributedActorImpl*>(actor);
 }
+#endif
 
 /*****************************************************************************/
 /******************** NEW DEFAULT ACTOR IMPLEMENTATION ***********************/
@@ -1971,8 +1973,10 @@ void DefaultActorImpl::deallocate() {
 #endif
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 static size_t
 getDistributedRemoteActorAllocSize(const ClassMetadata *metadata);
+#endif
 
 void DefaultActorImpl::deallocateUnconditional() {
   concurrency::trace::actor_deallocate(this);
@@ -2292,6 +2296,7 @@ void swift::swift_defaultActor_deallocate(DefaultActor *_actor) {
   asImpl(_actor)->deallocate();
 }
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 static bool isDefaultActorClass(const ClassMetadata *metadata) {
   assert(metadata->isTypeMetadata());
   while (true) {
@@ -2310,6 +2315,7 @@ static bool isDefaultActorClass(const ClassMetadata *metadata) {
     }
   }
 }
+#endif
 
 void swift::swift_defaultActor_deallocateResilient(HeapObject *actor) {
 #if !SWIFT_CONCURRENCY_EMBEDDED
@@ -2799,6 +2805,7 @@ void swift::swift_executor_escalate(SerialExecutorRef executor, AsyncTask *task,
 /***************************** DISTRIBUTED ACTOR *****************************/
 /*****************************************************************************/
 
+#if !SWIFT_CONCURRENCY_EMBEDDED
 void swift::swift_nonDefaultDistributedActor_initialize(NonDefaultDistributedActor *_actor) {
   asImpl(_actor)->initialize();
 }
@@ -2861,6 +2868,7 @@ swift::swift_distributedActor_remote_initialize(const Metadata *actorType) {
     return reinterpret_cast<OpaqueValue*>(actor);
   }
 }
+#endif // !SWIFT_CONCURRENCY_EMBEDDED
 
 bool swift::swift_distributed_actor_is_remote(HeapObject *_actor) {
 #if !SWIFT_CONCURRENCY_EMBEDDED
