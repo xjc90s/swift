@@ -376,7 +376,7 @@ static void destroyTask(SWIFT_CONTEXT HeapObject *obj) {
   // here.
 
   SWIFT_TASK_DEBUG_LOG("Destroyed task %p", task);
-  free(task);
+  swift_slowDealloc(task, 0, alignof(AsyncTask) - 1);
 }
 
 #if !SWIFT_CONCURRENCY_EMBEDDED
@@ -963,7 +963,7 @@ swift_task_create_commonImpl(size_t rawTaskCreateFlags,
     allocation = runInlineOption->getAllocation();
     initialSlabSize = runInlineBufferBytes - amountToAllocate;
   } else {
-    allocation = malloc(amountToAllocate);
+    allocation = swift_slowAlloc(amountToAllocate, alignof(AsyncTask) - 1);
   }
   SWIFT_TASK_DEBUG_LOG("allocate task %p, parent = %p, slab %u", allocation,
                        parent, initialSlabSize);
