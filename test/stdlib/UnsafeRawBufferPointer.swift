@@ -132,7 +132,7 @@ UnsafeRawBufferPointerTestSuite.test("initFromArray") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).underflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 30,
     alignment: MemoryLayout<UInt64>.alignment
@@ -152,7 +152,7 @@ UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).underflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 30,
     alignment: MemoryLayout<UInt64>.alignment
@@ -187,7 +187,7 @@ UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).exact") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("initializeMemory(as:from:).invalidNilPtr")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer(start: nil, count: 0)
   let source: [Int64] = [5, 4, 3, 2, 1]
   expectCrashLater()
@@ -303,7 +303,7 @@ UnsafeRawBufferPointerTestSuite.test("inBounds") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.get.underflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 2,
     alignment: MemoryLayout<UInt>.alignment
@@ -320,7 +320,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.get.underflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.get.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 2,
     alignment: MemoryLayout<UInt>.alignment
@@ -337,7 +337,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.get.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.set.underflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 2,
     alignment: MemoryLayout<UInt>.alignment
@@ -354,7 +354,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.set.underflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.set.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 2,
     alignment: MemoryLayout<UInt>.alignment
@@ -371,7 +371,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.set.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.get.underflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -388,7 +388,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.range.get.underflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.get.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -405,7 +405,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.range.get.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.set.underflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -422,7 +422,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.range.set.underflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.set.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -440,7 +440,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.range.set.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.narrow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -455,7 +455,7 @@ UnsafeRawBufferPointerTestSuite.test("subscript.range.narrow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("subscript.range.wide")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -482,7 +482,7 @@ UnsafeRawBufferPointerTestSuite.test("_copyContents") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("copyMemory.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -513,7 +513,7 @@ UnsafeRawBufferPointerTestSuite.test("copyBytes.withoutContiguousStorage") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("copyBytes.sequence.overflow")
-.requireCapability(.crashTesting).code {
+.require(.crashTesting).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: 3,
     alignment: MemoryLayout<UInt>.alignment
@@ -531,7 +531,7 @@ UnsafeRawBufferPointerTestSuite.test("copyBytes.sequence.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("load.before")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition."))
@@ -544,7 +544,7 @@ UnsafeRawBufferPointerTestSuite.test("load.before")
 }
 
 UnsafeRawBufferPointerTestSuite.test("load.after")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition.."))
@@ -569,7 +569,7 @@ UnsafeRawBufferPointerTestSuite.test("load.aligned") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("load.invalid")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom({ !_isDebugAssertConfiguration() }, // require debugAssert
               reason: "This tests a debug precondition.."))
 .code {
@@ -598,7 +598,7 @@ UnsafeRawBufferPointerTestSuite.test("load.unaligned")
 }
 
 UnsafeRawBufferPointerTestSuite.test("store.before")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition.."))
@@ -610,7 +610,7 @@ UnsafeRawBufferPointerTestSuite.test("store.before")
   }
 }
 UnsafeRawBufferPointerTestSuite.test("store.after")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition.."))
@@ -647,7 +647,7 @@ UnsafeRawBufferPointerTestSuite.test("store.unaligned")
 }
 
 UnsafeRawBufferPointerTestSuite.test("store.invalid")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom({ !_isDebugAssertConfiguration() }, // require debugAssert
               reason: "This tests a debug precondition.."))
 .require(.stdlib_5_7)
@@ -673,7 +673,7 @@ UnsafeRawBufferPointerTestSuite.test("store.valid") {
 }
 
 UnsafeRawBufferPointerTestSuite.test("copy.bytes.overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition.."))
@@ -690,7 +690,7 @@ UnsafeRawBufferPointerTestSuite.test("copy.bytes.overflow")
 }
 
 UnsafeRawBufferPointerTestSuite.test("copy.sequence.overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .skip(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "This tests a debug precondition.."))

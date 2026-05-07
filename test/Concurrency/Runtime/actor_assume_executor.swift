@@ -118,7 +118,7 @@ final class MainActorEcho {
       }
 
       tests.test("MainActor.assumeIsolated: wrongly assume the main executor, from actor on other executor")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected 'MainActor' executor.")
         await SomeoneOnDefaultExecutor().callCheckMainActor(echo: echo)
@@ -128,14 +128,14 @@ final class MainActorEcho {
 
       let someone = SomeoneOnDefaultExecutor()
       tests.test("assumeOnActorExecutor: wrongly assume someone's executor, from 'main() async'")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.SomeoneOnDefaultExecutor.")
         checkAssumeSomeone(someone: someone)
       }
 
       tests.test("assumeOnActorExecutor: wrongly assume someone's executor, from MainActor method")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.SomeoneOnDefaultExecutor.")
         checkAssumeSomeone(someone: someone)
@@ -150,7 +150,7 @@ final class MainActorEcho {
       }
 
       tests.test("assumeOnActorExecutor: wrongly assume the main executor, from actor on other executor")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater(withMessage: "Incorrect actor executor assumption; Expected same executor as a.SomeoneOnDefaultExecutor.")
         await CompleteStranger(someone: someone).callCheckSomeone()

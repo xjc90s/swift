@@ -53,7 +53,7 @@ suite.test("bitCast UInt64 to Int64")
 }
 
 suite.test("bitCast size mismatch precondition")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   let u = Int32.zero
   expectCrashLater()

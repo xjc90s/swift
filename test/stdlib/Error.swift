@@ -119,7 +119,7 @@ ErrorTests.test("default domain and code") {
 enum SillyError: Error { case JazzHands }
 
 ErrorTests.test("try!")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom({ _isFastAssertConfiguration() },
                 reason: "trap is not guaranteed to happen in -Ounchecked"))
   .crashOutputMatches(shouldCheckErrorLocation()
@@ -132,7 +132,7 @@ ErrorTests.test("try!")
 }
 
 ErrorTests.test("try!/location")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom({ _isFastAssertConfiguration() },
                 reason: "trap is not guaranteed to happen in -Ounchecked"))
   .crashOutputMatches(shouldCheckErrorLocation()

@@ -24,7 +24,7 @@ RepeatTests.test("associated-types") {
 }
 
 RepeatTests.test("out-of-bounds")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   let sequence = repeatElement(0, count: 1)
   expectCrashLater()

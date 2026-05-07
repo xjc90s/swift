@@ -343,13 +343,13 @@ OptionalTests.test("Casting Optional") {
 }
 
 OptionalTests.test("Casting Optional Traps")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   let nx: C? = nil
   expectCrash { _blackHole(anyToAny(nx, Int.self)) }
 }
 OptionalTests.test("Casting Optional Any Traps")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   let nx: X? = X()
   expectCrash { _blackHole(anyToAny(nx as Any, Optional<Int>.self)) }
@@ -416,7 +416,7 @@ OptionalTests.test("unsafelyUnwrapped") {
 }
 
 OptionalTests.test("unsafelyUnwrapped nil")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .xfail(.custom(
     { !_isDebugAssertConfiguration() },
     reason: "assertions are disabled in Release and Unchecked mode"))

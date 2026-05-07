@@ -74,7 +74,7 @@ StaticStringTestSuite.test("PointerRepresentation/NonASCII") {
 }
 
 StaticStringTestSuite.test("PointerRepresentation/unicodeScalar")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))
@@ -125,7 +125,7 @@ StaticStringTestSuite.test("UnicodeScalarRepresentation/NonASCII") {
 }
 
 StaticStringTestSuite.test("UnicodeScalarRepresentation/utf8Start")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))
@@ -139,7 +139,7 @@ StaticStringTestSuite.test("UnicodeScalarRepresentation/utf8Start")
 }
 
 StaticStringTestSuite.test("UnicodeScalarRepresentation/utf8CodeUnitCount")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))

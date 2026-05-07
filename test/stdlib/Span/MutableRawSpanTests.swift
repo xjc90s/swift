@@ -336,7 +336,7 @@ suite.test("storeBytes(repeating:count:as:) count zero")
 }
 
 suite.test("storeBytes(repeating:count:as:) negative count")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
 
   var array = ContiguousArray(repeating: UInt8.zero, count: 16)
@@ -677,7 +677,7 @@ suite.test("MutableRawSpan subscript")
 }
 
 suite.test("MutableRawSpan subscript bounds underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
 
   var array = ContiguousArray<UInt8>([10, 20, 30, 40])
@@ -688,7 +688,7 @@ suite.test("MutableRawSpan subscript bounds underflow")
 }
 
 suite.test("MutableRawSpan subscript bounds overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
 
   var array = ContiguousArray<UInt8>([10, 20, 30, 40])

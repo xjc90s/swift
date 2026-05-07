@@ -74,7 +74,7 @@ TemporaryAllocationTestSuite.test("untypedEmptyAllocationIsStackAllocated") {
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeByteCount")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let byteCount = Int.random(in: -2 ..< -1)
@@ -83,7 +83,7 @@ TemporaryAllocationTestSuite.test("crashOnNegativeByteCount")
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeAlignment")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let alignment = Int.random(in: -2 ..< -1)
@@ -178,7 +178,7 @@ TemporaryAllocationTestSuite.test("voidSpanIsStackAllocated") {
 }
 
 TemporaryAllocationTestSuite.test("crashOnNegativeValueCount")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let capacity = Int.random(in: -2 ..< -1)
@@ -187,7 +187,7 @@ TemporaryAllocationTestSuite.test("crashOnNegativeValueCount")
 }
 
 TemporaryAllocationTestSuite.test("spanCrashOnNegativeValueCount")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let capacity = Int.random(in: -2 ..< -1)
@@ -298,7 +298,7 @@ TemporaryAllocationTestSuite.test("rawSpanAppendAndByteCount") {
 }
 
 TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeByteCount")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let byteCount = Int.random(in: -2 ..< -1)
@@ -307,7 +307,7 @@ TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeByteCount")
 }
 
 TemporaryAllocationTestSuite.test("rawSpanCrashOnNegativeAlignment")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .code {
   expectCrash {
     let alignment = Int.random(in: -2 ..< -1)

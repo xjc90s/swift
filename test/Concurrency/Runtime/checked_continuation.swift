@@ -19,7 +19,7 @@ struct TestError: Error {}
 
     if #available(SwiftStdlib 5.1, *) {
       tests.test("trap on double resume non-throwing continuation")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater()
 
@@ -33,7 +33,7 @@ struct TestError: Error {}
       }
 
       tests.test("trap on double resume throwing continuation")
-      .requireCapability(.crashTesting)
+      .require(.crashTesting)
       .code {
         expectCrashLater()
 

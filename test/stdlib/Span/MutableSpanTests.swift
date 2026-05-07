@@ -663,7 +663,7 @@ suite.test("init(mutating:)")
 }
 
 suite.test("init(mutating:) traps on misaligned pointer")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: MemoryLayout<Int>.stride * 2 + 1,
@@ -684,7 +684,7 @@ suite.test("init(mutating:) traps on misaligned pointer")
 }
 
 suite.test("init(mutating:) traps on byteCount not multiple of stride")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: MemoryLayout<Int>.stride + 1,
@@ -719,7 +719,7 @@ suite.test("init(mutableBytes:)")
 }
 
 suite.test("init(mutableBytes:) traps on misaligned pointer")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: MemoryLayout<Int>.stride * 2 + 1,
@@ -740,7 +740,7 @@ suite.test("init(mutableBytes:) traps on misaligned pointer")
 }
 
 suite.test("init(mutableBytes:) traps on byteCount not multiple of stride")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   let buffer = UnsafeMutableRawBufferPointer.allocate(
     byteCount: MemoryLayout<Int>.stride + 1,

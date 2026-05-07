@@ -223,7 +223,7 @@ suite.test("InlineArray initialization")
 }
 
 suite.test("InlineArray initialization underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
   guard #available(SwiftStdlib 6.2, *) else { return }
 
@@ -354,7 +354,7 @@ suite.test("Array initialization throws")
 }
 
 suite.test("Array initialization overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -367,7 +367,7 @@ suite.test("Array initialization overflow")
 }
 
 suite.test("Array initialization underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -433,7 +433,7 @@ suite.test("Array append throws")
 }
 
 suite.test("Array append overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -447,7 +447,7 @@ suite.test("Array append overflow")
 }
 
 suite.test("Array append underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -507,7 +507,7 @@ suite.test("ContiguousArray initialization")
 }
 
 suite.test("ContiguousArray initialization overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -520,7 +520,7 @@ suite.test("ContiguousArray initialization overflow")
 }
 
 suite.test("ContiguousArray initialization underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -586,7 +586,7 @@ suite.test("ContiguousArray append throws")
 }
 
 suite.test("ContiguousArray append overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -600,7 +600,7 @@ suite.test("ContiguousArray append overflow")
 }
 
 suite.test("ContiguousArray.append underflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_2).code {
 
   expectCrashLater()
@@ -679,7 +679,7 @@ suite.test("append(upTo:initializingWith:) appends to existing")
 }
 
 suite.test("append(upTo:initializingWith:) negative count")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   var a = ContiguousArray<Int>()
   a.append(addingCapacity: 4) { span in
@@ -690,7 +690,7 @@ suite.test("append(upTo:initializingWith:) negative count")
 }
 
 suite.test("append(upTo:initializingWith:) traps on capacity overflow")
-.requireCapability(.crashTesting)
+.require(.crashTesting)
 .require(.stdlib_6_4).code {
   var a = ContiguousArray<Int>()
   a.append(addingCapacity: 2) { span in

@@ -1027,7 +1027,7 @@ mirrors.test("Addressing") {
 }
 
 mirrors.test("Invalid Path Type")
-  .requireCapability(.crashTesting)
+  .require(.crashTesting)
   .skip(.custom(
     { _isFastAssertConfiguration() },
     reason: "this trap is not guaranteed to happen in -Ounchecked"))
