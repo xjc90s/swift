@@ -487,6 +487,53 @@ bool DebugValueInst::exprStartsWithDeref() const {
           == SILDIExprOperator::Dereference;
 }
 
+bool DebugValueInst::isExprTypeValid() const {
+  auto varInfo = getCompleteVarInfo();
+
+  // Ignore trace debug values.
+  if (hasTrace())
+    return true;
+
+  SILFunction *F = getFunction();
+  if (!F)
+    return false;
+
+  SILType SSAType = getOperand()->getType();
+  SILType TargetType = SSAType.getObjectType();
+  SILType VarType = *varInfo.Type;
+  SILType RunningType = VarType;
+
+  unsigned derefCount = 0;
+
+  for (const SILDIExprOperand &Operand : varInfo.DIExpr.operands()) {
+    switch (Operand.getOperator()) {
+    case SILDIExprOperator::Dereference:
+      ++derefCount;
+      break;
+    case SILDIExprOperator::Fragment: {
+      auto *Field = cast<VarDecl>(Operand.args()[0].getAsDecl());
+      RunningType = RunningType.getFieldType(Field, F);
+      break;
+    }
+    case SILDIExprOperator::TupleFragment: {
+      unsigned Idx = Operand.args()[1].getAsConstInt().value();
+      RunningType = RunningType.getTupleElementType(Idx);
+      break;
+    }
+    default:
+      break;
+    }
+  }
+
+  // There must be as many op_derefs as SIL type indirection levels.
+  // SIL only supports one level of indirection, so op_deref too.
+  if (derefCount != SSAType.isAddress())
+    return false;
+
+  return RunningType.removingMoveOnlyWrapper() ==
+         TargetType.removingMoveOnlyWrapper();
+}
+
 VarDecl *DebugValueInst::getDecl() const {
   return getVarLoc().getAsASTNode<VarDecl>();
 }

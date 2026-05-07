@@ -5732,6 +5732,13 @@ public:
   /// with `op_deref`.
   bool exprStartsWithDeref() const;
 
+  /// Validates the type chain of the DIExpr.
+  /// Starting from VarType, narrows through fragments (outermost first)
+  /// and checks that the result matches the SSA operand type, and that there
+  /// is the right amount of op_deref.
+  /// Returns false if the type chain is invalid, true otherwise.
+  bool isExprTypeValid() const;
+
   /// True if all references within this debug value will be overwritten with a
   /// poison sentinel at this point in the program. This is used in debug builds
   /// when shortening non-trivial value lifetimes to ensure the debugger cannot
