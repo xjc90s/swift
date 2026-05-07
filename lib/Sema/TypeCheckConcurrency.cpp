@@ -4960,21 +4960,28 @@ ActorIsolationChecker::determineClosureIsolation(AbstractClosureExpr *closure,
         isIsolationInferenceBoundaryClosure(closure,
                                             /*canInheritActorContext=*/true);
 
+    bool isArgumentOfNonisolatedNonsendingApply = false;
+    if (auto *apply = dyn_cast_or_null<CallExpr>(getImmediateApply())) {
+      auto type = apply->getFn()->getType();
+      if (auto *fnType = type->getAs<AnyFunctionType>()) {
+        isArgumentOfNonisolatedNonsendingApply =
+            fnType->getIsolation().isNonisolatedNonsending();
+      }
+    }
+
     auto canAssumeNonisolatedNonsending = [&]() {
       // Boundary closures cannot infer isolation from the parent context and
       // so are always allowed to assume `nonisolated(nonsending)` isolation.
       if (isIsolationBoundary)
         return true;
 
-      if (auto *explicitClosure = dyn_cast<ClosureExpr>(closure)) {
-        // If a closure is used as an argument in `nonisolated(nonsending)` call
-        // and it assumes isolation of the parent it doesn't have to assume
-        // `nonisolated(nonsending)` isolation of the parameter because the
-        // `nonisolated(nonsending)` in this case matches isolation of the
-        // context.
-        if (explicitClosure->isPassedToNonisolatedNonsendingCall())
-          return !inheritsParentIsolation;
-      }
+      // If a closure is used as an argument in `nonisolated(nonsending)` call
+      // and it assumes isolation of the parent it doesn't have to assume
+      // `nonisolated(nonsending)` isolation of the parameter because the
+      // `nonisolated(nonsending)` in this case matches isolation of the
+      // context.
+      if (isArgumentOfNonisolatedNonsendingApply)
+        return !inheritsParentIsolation;
 
       // Since this is not a call to `nonisolated(nonsending)` declaration, the
       // closure can assume `nonisolated(nonsending)` when it's `@concurrent`,
@@ -5014,7 +5021,7 @@ ActorIsolationChecker::determineClosureIsolation(AbstractClosureExpr *closure,
       // because closure doesn't leave parent isolation and we prefer statically
       // known isolation over dynamic one.
       if (auto *explicitClosure = dyn_cast<ClosureExpr>(closure)) {
-        if (explicitClosure->isPassedToNonisolatedNonsendingCall() &&
+        if (isArgumentOfNonisolatedNonsendingApply &&
             inheritsParentIsolation)
           explicitClosure->setBehavesLikeNonisolatedNonsending();
       }

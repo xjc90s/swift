@@ -268,7 +268,7 @@ protected:
     Kind : 2
   );
 
-  SWIFT_INLINE_BITFIELD(ClosureExpr, AbstractClosureExpr, 1+1+1+1+1+1+1+1+1+1+1,
+  SWIFT_INLINE_BITFIELD(ClosureExpr, AbstractClosureExpr, 1+1+1+1+1+1+1+1+1+1,
     /// True if closure parameters were synthesized from anonymous closure
     /// variables.
     HasAnonymousClosureVars : 1,
@@ -304,10 +304,6 @@ protected:
     /// is only populated after type-checking, and only exists for diagnostic
     /// logic. Do not add more uses of this.
     IsMacroArgument : 1,
-
-    /// True if this is a closure literal that is passed as an argument to a
-    /// call that references `nonisolated(nonsending)` declaration.
-    IsPassedToNonisolatedNonsendingCall : 1,
 
     /// True if this closure, even though it has a different static isolation,
     /// should behave like `nonisolated(nonsending)` when lowered. This is important
@@ -4329,7 +4325,6 @@ public:
     Bits.ClosureExpr.NoGlobalActorAttribute = false;
     Bits.ClosureExpr.RequiresDynamicIsolationChecking = false;
     Bits.ClosureExpr.IsMacroArgument = false;
-    Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall = false;
     Bits.ClosureExpr.BehavesLikeNonisolatedNonsending = false;
   }
 
@@ -4439,16 +4434,6 @@ public:
 
   void setIsMacroArgument(bool value = true) {
     Bits.ClosureExpr.IsMacroArgument = value;
-  }
-
-  /// Determines whether this is a closure literal that is passed as an argument
-  /// to a call that references `nonisolated(nonsending)` declaration.
-  bool isPassedToNonisolatedNonsendingCall() const {
-    return Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall;
-  }
-
-  void setIsPassedToNonisolatedNonsendingCall(bool value = true) {
-    Bits.ClosureExpr.IsPassedToNonisolatedNonsendingCall = value;
   }
 
   /// Determines whether this closure, even though it has a different static
