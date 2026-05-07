@@ -141,5 +141,5 @@ class WeakObjC {
 // CHECK:  i32 1, !"Objective-C Image Info Section", !"__DATA,__objc_imageinfo,regular,no_dead_strip"}
 //   100992768 == (6 << 24) | (5 << 16) | (7 << 8).
 //     6 and 5 is the current major.minor version. 7 is the Swift ABI version.
-// CHECK:  i32 4, !"Objective-C Garbage Collection", i32 100927232}
+// CHECK:  i32 4, !"Objective-C Garbage Collection", i32 100992768}
 // CHECK:  i32 1, !"Swift Version", i32 7}
