@@ -802,6 +802,35 @@ ClangImporter::Implementation::lookupAndImportSubscripts(
     ASSERT((CXXGetter || CXXSetter) &&
            "subscript should have at least getter or setter");
 
+    if (CXXGetter && CXXSetter) {
+      // The getter and setter have the same argument types, and neither of them
+      // are volatile or r-value ref qualified (since we skip those overloads),
+      // so they must differ by their const-ness (either const + non-const, or
+      // const l-value ref + non-const l-value ref).
+      //
+      // If this subtle invariant is somehow broken, just skip importing this
+      // getter/setter pair (asserting this invariant risks making ClangImporter
+      // more fragile than necessary).
+      if (!(CXXGetter.method->isConst() ^ CXXSetter.method->isConst()))
+        continue;
+
+      auto stripToUnderlying = [](clang::QualType ty) {
+        if (ty->isPointerType())
+          return ty->getPointeeType().getUnqualifiedType().getCanonicalType();
+        else
+          return ty.getNonReferenceType().getUnqualifiedType().getCanonicalType();
+      };
+      auto getRetTy = stripToUnderlying(CXXGetter.method->getReturnType()),
+           setRetTy = stripToUnderlying(CXXSetter.method->getReturnType());
+      if (getRetTy != setRetTy) {
+        // Getter and setter return types differ; pick the const-overloaded one
+        if (!CXXGetter.method->isConst())
+          CXXGetter = {};
+        if (!CXXSetter.method->isConst())
+          CXXSetter = {};
+      }
+    }
+
     auto importSubscriptOverload = [&](CXXOverload overload) -> FuncDecl * {
       if (!overload)
         return nullptr;
