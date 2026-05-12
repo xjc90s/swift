@@ -801,51 +801,38 @@ ClangImporter::Implementation::lookupAndImportSubscripts(
   for (auto [CXXGetter, CXXSetter] : CXXSubscripts.values()) {
     ASSERT((CXXGetter || CXXSetter) &&
            "subscript should have at least getter or setter");
-    FuncDecl *getter = nullptr, *setter = nullptr;
-    if (CXXGetter) {
-      getter =
-          importUnavailableMethod(*this, CXXGetter, Struct, "use subscript");
-      if (!getter)
-        continue;
-      auto name = getter->getBaseName();
+
+    auto importSubscriptOverload = [&](CXXOverload overload) -> FuncDecl * {
+      if (!overload)
+        return nullptr;
+
+      auto *swiftFunc =
+          importUnavailableMethod(*this, overload, Struct, "use subscript");
+      if (!swiftFunc)
+        return nullptr;
+
+      auto name = swiftFunc->getBaseName();
       ASSERT(!name.isSpecial() &&
              "operator[] should not be imported with special name");
       ASSERT(name.getIdentifier().str().starts_with("__operatorSubscript") &&
              "operator[] should be imported as __operatorSubscript");
-      for (auto *parameter : *(getter->getParameters())) {
-        if (parameter->isInOut() || !parameter->getTypeInContext()) {
+
+      for (auto *parameter : *(swiftFunc->getParameters())) {
+        if (parameter->isInOut() || !parameter->getTypeInContext())
           // Subscripts with inout parameters are not allowed in Swift.
-          getter = nullptr;
-          break;
-        }
+          return nullptr;
       }
-    }
 
-    if (CXXSetter) {
-      setter =
-          importUnavailableMethod(*this, CXXSetter, Struct, "use subscript");
-      if (!setter)
-        continue;
+      return swiftFunc;
+    };
 
-      // Mark subscript setter as mutating in Swift even if the C++ operator
-      // is const.
-      if (!setter->getDeclContext()->isModuleScopeContext() &&
-          !Struct->getDeclaredType()->isForeignReferenceType())
-        setter->setSelfAccessKind(SelfAccessKind::Mutating);
+    FuncDecl *getter = importSubscriptOverload(CXXGetter),
+             *setter = importSubscriptOverload(CXXSetter);
 
-      auto name = setter->getBaseName();
-      ASSERT(!name.isSpecial() &&
-             "operator[] should not be imported with special name");
-      ASSERT(name.getIdentifier().str().starts_with("__operatorSubscript") &&
-             "operator[] should be imported as __operatorSubscript");
-      for (auto *parameter : *(setter->getParameters())) {
-        if (parameter->isInOut() || !parameter->getTypeInContext()) {
-          // Subscripts with inout parameters are not allowed in Swift.
-          setter = nullptr;
-          break;
-        }
-      }
-    }
+    // Mark subscript setter as mutating in Swift even if C++ operator is const.
+    if (setter && !setter->getDeclContext()->isModuleScopeContext() &&
+        !Struct->getDeclaredType()->isForeignReferenceType())
+      setter->setSelfAccessKind(SelfAccessKind::Mutating);
 
     if (!getter && !setter)
       // Didn't end up with a usable getter or setter, so nothing to synthesize
