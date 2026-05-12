@@ -2010,33 +2010,6 @@ void swift::salvageDebugInfo(SILInstruction *I) {
     }
   }
 
-  if (auto *IA = dyn_cast<IndexAddrInst>(I)) {
-    if (IA->getBase() && IA->getIndex())
-      // Only handle cases where offset is constant.
-      if (const auto *LiteralInst =
-            dyn_cast<IntegerLiteralInst>(IA->getIndex())) {
-        SILValue Base = IA->getBase();
-        SILValue ResultAddr = IA->getResult(0);
-        APInt OffsetVal = LiteralInst->getValue();
-        const SILDIExprElement ExprElements[3] = {
-          SILDIExprElement::createOperator(OffsetVal.isNegative() ?
-            SILDIExprOperator::ConstSInt : SILDIExprOperator::ConstUInt),
-          SILDIExprElement::createConstInt(OffsetVal.getLimitedValue()),
-          SILDIExprElement::createOperator(SILDIExprOperator::Plus)
-        };
-        for (Operand *U : getDebugUses(ResultAddr)) {
-          auto *DbgInst = cast<DebugValueInst>(U->getUser());
-          auto VarInfo = DbgInst->getVarInfo();
-          if (!VarInfo)
-            continue;
-          VarInfo->DIExpr.prependElements(ExprElements);
-          // Create a new debug_value
-          SILBuilder(IA, DbgInst->getDebugScope())
-            .createDebugValue(DbgInst->getLoc(), Base, *VarInfo);
-        }
-      }
-  }
-
   if (auto *IL = dyn_cast<IntegerLiteralInst>(I)) {
     APInt value = IL->getValue();
     const SILDIExprElement ExprElements[2] = {
