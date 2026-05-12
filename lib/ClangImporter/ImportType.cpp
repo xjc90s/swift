@@ -2099,6 +2099,7 @@ private:
   NEVER_VISIT(BuiltinType)
   NEVER_VISIT(BuiltinTupleType)
   NEVER_VISIT(IntegerType)
+  NEVER_VISIT(HiddenType)
 
   VISIT(TupleType, recurse)
 
