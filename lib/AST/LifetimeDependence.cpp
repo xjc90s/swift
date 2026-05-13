@@ -2103,8 +2103,9 @@ ArrayRef<LifetimeDependenceInfo> LifetimeDependenceInfo::partialApply(
       if (!indices)
         return nullptr;
 
-      ASSERT(indices->getCapacity() == numFormalParams &&
-             "There should be 1 index per parameter. SIL functions cannot have "
+      ASSERT(indices->getCapacity() <= numFormalParams &&
+             "There should be at most 1 index per parameter. SIL functions "
+             "cannot have "
              "an implicit self parameter.");
 
       auto bits = indices->getBitVector();
@@ -2115,7 +2116,8 @@ ArrayRef<LifetimeDependenceInfo> LifetimeDependenceInfo::partialApply(
         flags.setCaptures(true);
       }
 
-      // Remove the indices of the captured parameters.
+      // Remove the indices of the captured parameters, leaving only those of
+      // the closure parameters.
 
       if (bits.find_first() >= int(numClosureParams)) {
         // All lifetime sources are captured. The resulting empty list of
@@ -2123,7 +2125,8 @@ ArrayRef<LifetimeDependenceInfo> LifetimeDependenceInfo::partialApply(
         return nullptr;
       }
 
-      bits.resize(numClosureParams);
+      if (bits.size() > numClosureParams)
+        bits.resize(numClosureParams);
 
       return IndexSubset::get(ctx, bits);
     };
