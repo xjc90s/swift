@@ -17,13 +17,7 @@ struct NE: ~Escapable {
   init() {}
 }
 
-// -----------------------------------------------------------------------------
 // Baseline: a single-capture closure with a borrow-on-capture result.
-// Lifted closure: (NE) -> @lifetime(borrow 0) NE
-// Bind 1 captured NE -> () -> @lifetime(captures) NE
-// Verifies: target=result is remapped, all-bound scope source collapses to
-// nullptr, and the captures flag is set.
-// -----------------------------------------------------------------------------
 
 @_lifetime(copy f)
 func copyNE(f: () -> NE) -> NE {
@@ -42,13 +36,8 @@ func callGetNE(ne1: NE) -> NE {
   copyNE { ne1 }
 }
 
-// -----------------------------------------------------------------------------
 // Dependency on an unbound formal parameter: the source index is kept and no
 // captures flag is added.
-//
-// Lifted closure: (NE, Bool) -> @lifetime(borrow 0) NE
-// Bind 1 (the captured Bool) -> (NE) -> @lifetime(borrow 0) NE
-// -----------------------------------------------------------------------------
 
 @_lifetime(copy f)
 func eatOneBorrow(f: @_lifetime(borrow ne) (_ ne: NE) -> NE) -> NE {
@@ -66,13 +55,7 @@ func callBorrowOnUnbound(cond: Bool) -> NE {
   eatOneBorrow { n in if cond { return n } else { return n } }
 }
 
-// -----------------------------------------------------------------------------
-// Dependency on a bound-only source: the index list collapses to nullptr and
-// the captures flag is set.
-//
-// Lifted closure: (NE, NE) -> @lifetime(borrow 1) NE
-// Bind 1 (the captured NE) -> (NE) -> @lifetime(captures) NE
-// -----------------------------------------------------------------------------
+// Dependency on a borrowed source: replaced with captures.
 
 @_lifetime(copy f)
 func eatOneCaptures(f: @_lifetime(captures) (NE) -> NE) -> NE {
@@ -91,14 +74,9 @@ func callDepOnBound(bound: NE) -> NE {
   eatOneCaptures { _ in bound }
 }
 
-// -----------------------------------------------------------------------------
-// Dependency on a mix of bound and unbound sources: the bound bits are trimmed
-// off and the captures flag is set, while the unbound bits remain.
-//
-// Lifted closure: (NE, Bool, NE) -> @lifetime(borrow 0, borrow 1, borrow 2) NE
-// Bind 2 (the captured Bool and NE) ->
-//   (NE) -> @lifetime(captures, borrow 0) NE
-// -----------------------------------------------------------------------------
+// Dependency on a mix of captured and uncaptured sources: only the dependencies
+// on captured parameters (those bound by the partial apply) are replaced with
+// the captures dependency source.
 
 @_lifetime(copy f)
 func eatOneCapturesAndBorrow(f: @_lifetime(captures, borrow ne) (_ ne: NE) -> NE) -> NE {
@@ -117,15 +95,7 @@ func callMixed(bound: NE, cond: Bool) -> NE {
   eatOneCapturesAndBorrow { n in cond ? n : bound }
 }
 
-// -----------------------------------------------------------------------------
-// Multiple bound parameters with every source bound: exercises
-// numBoundParams > 1 in combination with the all-bound collapse path. Every
-// captured parameter contributes a source, so the result ends up as a pure
-// captures-only dependency.
-//
-// Lifted closure: (Bool, NE, NE) -> @lifetime(borrow 0, borrow 1, borrow 2) NE
-// Bind 3 (the three captures) -> () -> @lifetime(captures) NE
-// -----------------------------------------------------------------------------
+// Multiple parameters, all captured.
 
 @_lifetime(copy f)
 func eatZeroCaptures(f: @_lifetime(captures) () -> NE) -> NE {
@@ -143,14 +113,7 @@ func callBindMultiBound(a: NE, b: NE, cond: Bool) -> NE {
   eatZeroCaptures { cond ? a : b }
 }
 
-// -----------------------------------------------------------------------------
-// Multiple bound parameters with the dependency on the unbound formal: the
-// partialApply transform should leave the source index untouched and not set
-// captures.
-//
-// Lifted closure: (NE, Bool, Int) -> @lifetime(borrow 0) NE
-// Bind 2 (cond and tag) -> (NE) -> @lifetime(borrow 0) NE
-// -----------------------------------------------------------------------------
+// Multiple parameters: some captured, some not.
 
 // CHECK-LABEL: sil hidden [ossa] @$s22partial_apply_lifetime20callBindMultiUnbound4cond3tagAA2NEVSb_SitF :
 // CHECK: [[FNREF:%[0-9]+]] = function_ref @$s22partial_apply_lifetime20callBindMultiUnbound4cond3tagAA2NEVSb_SitFA2FXEfU_ : $@convention(thin) (@guaranteed NE, Bool, Int) -> @lifetime(borrow 0) @owned NE
@@ -165,14 +128,7 @@ func callBindMultiUnbound(cond: Bool, tag: Int) -> NE {
   }
 }
 
-// -----------------------------------------------------------------------------
-// @_lifetime(immortal) should round-trip through partialApply unchanged. The
-// immortal entry has no source index lists (all nullptr), so the captures
-// flag must not be set.
-//
-// Lifted closure: (Int) -> @lifetime(immortal) NE
-// Bind 1 -> () -> @lifetime(immortal) NE
-// -----------------------------------------------------------------------------
+// No lifetime sources: unaffected.
 
 @_lifetime(copy f)
 func eatImmortal(f: @_lifetime(immortal) () -> NE) -> NE {
@@ -191,16 +147,7 @@ func callImmortal(extra: Int) -> NE {
   eatImmortal { let _ = extra; return NE() }
 }
 
-// -----------------------------------------------------------------------------
-// Mixed dependency kinds (inherit + scope) within a single entry: exercises
-// that captureBoundParams is applied independently to each index list so that
-// an unbound inherit index is preserved while the corresponding scope list
-// collapses and sets the captures flag.
-//
-// Lifted closure: (NE, Bool, NE) -> @lifetime(copy 0, borrow 1, borrow 2) NE
-// Bind 2 (cond and the captured NE) ->
-//   (NE) -> @lifetime(captures, copy 0) NE
-// -----------------------------------------------------------------------------
+// Mixed dependency kinds (inherit + scope) within a single entry.
 
 @_lifetime(copy f)
 func eatOneCapturesCopy(f: @_lifetime(captures, copy ne) (_ ne: NE) -> NE) -> NE {
@@ -217,4 +164,67 @@ func eatOneCapturesCopy(f: @_lifetime(captures, copy ne) (_ ne: NE) -> NE) -> NE
 @_lifetime(copy bound)
 func callMixedKinds(bound: NE, cond: Bool) -> NE {
   eatOneCapturesCopy { n in cond ? n : bound }
+}
+
+// Converting a non-throwing function to typed-throws: this legitimately requires a
+// convert_function.
+
+func takeTypedThrowingNEReturning<E: Error>(_ f: (NE) throws(E) -> NE) {}
+
+// CHECK-LABEL: sil hidden [ossa] @$s22partial_apply_lifetime34reabstractToTypedThrowsNEReturningyyAA2NEVADXEF :
+// CHECK: [[THUNK:%[0-9]+]] = function_ref @$s22partial_apply_lifetime2NEVACIggo_A2Cs5NeverOIeggozr_TR : $@convention(thin) (@guaranteed NE, @lifetime(captures, copy 0) @guaranteed @noescape @callee_guaranteed (@guaranteed NE) -> @lifetime(captures, copy 0) @owned NE) -> (@owned NE, @error_indirect Never)
+// CHECK: [[CLOSURE:%[0-9]+]] = partial_apply [callee_guaranteed] [[THUNK]]
+// CHECK: convert_function [[CLOSURE]] to $@callee_guaranteed @substituted <τ_0_0> (@guaranteed NE) -> @lifetime(captures, copy 0) (@owned NE, @error_indirect τ_0_0) for <Never>
+// CHECK-LABEL: } // end sil function '$s22partial_apply_lifetime34reabstractToTypedThrowsNEReturningyyAA2NEVADXEF'
+func reabstractToTypedThrowsNEReturning(_ f: (NE) -> NE) {
+  takeTypedThrowingNEReturning(f)
+}
+
+// Typed throws with inout parameter.
+
+func takeTypedThrowingInout<E: Error>(_ f: (inout NE) throws(E) -> Void) {}
+
+// CHECK-LABEL: sil hidden [ossa] @$s22partial_apply_lifetime28reabstractToTypedThrowsInoutyyyAA2NEVzXEF :
+// CHECK: [[THUNK:%[0-9]+]] = function_ref @$s22partial_apply_lifetime2NEVIgl_ACs5NeverOIeglzr_TR : $@convention(thin) (@lifetime(copy 0) @inout NE, @guaranteed @noescape @callee_guaranteed (@lifetime(copy 0) @inout NE) -> ()) -> @error_indirect Never
+// CHECK: [[CLOSURE:%[0-9]+]] = partial_apply [callee_guaranteed] [[THUNK]]
+// CHECK: convert_function [[CLOSURE]] to $@callee_guaranteed @substituted <τ_0_0> (@lifetime(copy 0) @inout NE) -> @error_indirect τ_0_0 for <Never>
+// CHECK-LABEL: } // end sil function '$s22partial_apply_lifetime28reabstractToTypedThrowsInoutyyyAA2NEVzXEF'
+func reabstractToTypedThrowsInout(_ f: (inout NE) -> Void) {
+  takeTypedThrowingInout(f)
+}
+
+// Inout parameter, without a legitimate need for a convert_function:
+// No convert_function is emitted.
+
+struct Holder: ~Escapable {
+  @_lifetime(immortal)
+  init() {}
+
+  @_lifetime(self: copy other)
+  mutating func mut(other: NE) {}
+}
+
+func consumeInout(_ f: (inout Holder) -> ()) {}
+
+// CHECK-LABEL: sil hidden [ossa] @$s22partial_apply_lifetime13driveMutation5otheryAA2NEV_tF :
+// CHECK: [[FNREF:%[0-9]+]] = function_ref @$s22partial_apply_lifetime13driveMutation5otheryAA2NEV_tFyAA6HolderVzXEfU_ : $@convention(thin) (@lifetime(copy 0) @inout Holder, @guaranteed NE) -> ()
+// CHECK: [[CLOSURE:%[0-9]+]] = partial_apply [callee_guaranteed] [[FNREF]]
+// CHECK-NOT: convert_function
+// CHECK: convert_escape_to_noescape [not_guaranteed] [[CLOSURE]] to $@noescape @callee_guaranteed (@lifetime(copy 0) @inout Holder) -> ()
+// CHECK-LABEL: } // end sil function '$s22partial_apply_lifetime13driveMutation5otheryAA2NEV_tF'
+func driveMutation(other: NE) {
+  consumeInout { (h: inout Holder) in h.mut(other: other) }
+}
+
+// Captured inout parameter.
+
+// CHECK-LABEL: sil hidden [ossa] @$s22partial_apply_lifetime21callWithCapturedInoutyAA2NEVADzF : $@convention(thin) (@lifetime(copy 0) @inout NE) -> @lifetime(borrow 0) @owned NE {
+// CHECK: [[FNREF:%[0-9]+]] = function_ref @$s22partial_apply_lifetime21callWithCapturedInoutyAA2NEVADzFADyXEfU_ : $@convention(thin) (@inout_aliasable NE) -> @lifetime(borrow 0) @owned NE
+// CHECK: [[CLOSURE:%[0-9]+]] = partial_apply [callee_guaranteed] [[FNREF]]
+// CHECK-NOT: convert_function
+// CHECK: convert_escape_to_noescape [not_guaranteed] [[CLOSURE]] to $@noescape @callee_guaranteed () -> @lifetime(captures) @owned NE
+// CHECK-LABEL: } // end sil function '$s22partial_apply_lifetime21callWithCapturedInoutyAA2NEVADzF'
+@_lifetime(&ne)
+func callWithCapturedInout(_ ne: inout NE) -> NE {
+  copyNE { ne }
 }
