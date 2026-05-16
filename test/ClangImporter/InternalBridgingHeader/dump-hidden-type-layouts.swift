@@ -3,6 +3,7 @@
 // HIDDEN_TYPE_LAYOUTS_BLOCK in its .swiftmodule.
 
 // REQUIRES: swift_feature_AbstractStoredPropertyLayout
+// UNSUPPORTED: OS=windows-msvc
 
 // RUN: %empty-directory(%t)
 // RUN: split-file %s %t
